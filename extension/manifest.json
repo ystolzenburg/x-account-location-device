@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "X Account Location & Device Info",
+  "version": "1.2.0",
+  "description": "Shows country flag emojis and device/platform emojis next to X usernames.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.x.com/*",
+    "*://*.twitter.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.x.com/*",
+        "*://*.twitter.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}

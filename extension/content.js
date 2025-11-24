@@ -1,18 +1,3 @@
-// ==UserScript==
-// @name         X Account Location & Device Info
-// @namespace    http://tampermonkey.net/
-// @version      1.2.0
-// @description  Shows country flag emojis and device/platform emojis next to X usernames with hover tooltips
-// @author       Alexander Hagenah (@xaitax)
-// @homepage     https://github.com/xaitax/x-account-location-device
-// @supportURL   https://primepage.de
-// @supportURL   https://www.linkedin.com/in/alexhagenah/
-// @match        *://*x.com/*
-// @match        *://*twitter.com/*
-// @grant        unsafeWindow
-// @run-at       document-start
-// ==/UserScript==
-
 (function() {
     'use strict';
 
@@ -546,10 +531,19 @@
                 }
             };
 
+            // In extension context (MAIN world), we can just attach to window
+            // But we should check if we need cloneInto (Firefox extension content script in MAIN world might still need it?)
+            // Actually, in MAIN world, we share the JS context, so direct assignment usually works.
+            // But let's keep the safe check.
+            
             if (typeof cloneInto === 'function') {
-                unsafeWindow.XFlagScript = cloneInto(api, unsafeWindow, { cloneFunctions: true });
+                try {
+                    window.XFlagScript = cloneInto(api, window, { cloneFunctions: true });
+                } catch(e) {
+                    window.XFlagScript = api;
+                }
             } else {
-                unsafeWindow.XFlagScript = api;
+                window.XFlagScript = api;
             }
         }
     }

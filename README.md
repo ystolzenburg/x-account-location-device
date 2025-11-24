@@ -1,6 +1,6 @@
 # X Account Location & Device Info
 
-A Tampermonkey userscript that displays country flags and device/platform information next to X (formerly Twitter) usernames. Shows where users are located and what device they're using, all in a clean, unobtrusive way.
+A Browser Extension and Userscript that displays country flags and device/platform information next to X (~~Twitter~~) usernames. Shows where users are located and what device they're using, all in a clean, unobtrusive way.
 
 ## 📰 Background
 
@@ -37,11 +37,38 @@ The script extracts this official location and device data from X's GraphQL API,
 - [Tampermonkey](https://www.tampermonkey.net/) browser extension
 - Modern web browser (Chrome, Brave, Firefox, Edge, etc.)
 
-### Install Steps
+### Install Steps (Userscript)
 1. Install Tampermonkey from the link above
 2. Click here to install the script: [X Account Location & Device Info](https://github.com/xaitax/x-account-location-device/raw/main/x-account-location-flag.user.js)
 3. Tampermonkey will prompt you to install - click "Install"
 4. Visit [x.com](https://x.com) and you'll see flags and device indicators next to usernames!
+
+### Install Steps (Browser Extension)
+You can also install this as a standalone extension without Tampermonkey.
+
+**Chrome / Edge / Brave:**
+1. Download or clone this repository
+2. Go to `chrome://extensions`
+3. Enable **Developer mode** (top right)
+4. Click **Load unpacked**
+5. Select the `extension` folder from this repository
+
+**Firefox:**
+1. Download or clone this repository
+2. Go to `about:debugging#/runtime/this-firefox`
+3. Click **Load Temporary Add-on...**
+4. Select the `manifest.json` file inside the `extension` folder
+
+*Note: Temporary add-ons in Firefox are removed when you close the browser.*
+
+### Permanent Firefox Installation
+To install permanently on Firefox, you need to sign the extension:
+1. Zip the contents of the `extension` folder (or use the provided `extension.zip`).
+2. Go to the [Firefox Developer Hub](https://addons.mozilla.org/en-US/developers/addon/submit/distribution).
+3. Select **"On your own"** to distribute it yourself.
+4. Upload the zip file and wait for the automated review (usually takes a few minutes).
+5. Download the signed `.xpi` file.
+6. Drag and drop the `.xpi` file into Firefox to install it permanently.
 
 ## 📱 Usage
 
@@ -77,11 +104,16 @@ XFlagScript.debug()
 
 ## 📜 Changelog
 
+
+### v1.2.0
+- **Dual Mode**: Now available as both a standalone Browser Extension (Chrome/Firefox) and a Userscript.
+
 ### v1.1.0
-- Rewrote the country lookup engine to be instant, removing lag on busy timelines.
-- Now forces X to return English country names, so flags work even if your interface is in German, French, etc.
-- Updated font stacks to properly render flag emojis on Windows and Firefox.
-- Added a fallback authentication mechanism so the script works even if it misses the initial API handshake.
+- **Instant Speed**: Rewrote the country lookup engine to be O(1) (instant), removing lag on busy timelines.
+- **Language Fix**: Now forces X to return English country names, so flags work even if your interface is in German, French, etc.
+- **Firefox & Windows Fix**: Updated font stacks to properly render flag emojis on Windows and Firefox.
+- **Smart Fallbacks**: If X's API doesn't return a device, we now intelligently guess based on your browser to show *something* useful.
+- **Robustness**: Added a fallback authentication mechanism so the script works even if it misses the initial API handshake.
 
 ## 🔧 How It Works
 
