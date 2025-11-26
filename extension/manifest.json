@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X-Posed: Account Location & Device Info",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "See where X users are located and what devices they use. Country flags & device icons next to every username. Optional geo-blocking.",
   "icons": {
     "16": "icons/icon16.png",

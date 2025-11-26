@@ -5,7 +5,7 @@
      * Configuration & Constants
      */
     const CONFIG = {
-        VERSION: '1.5.0',
+        VERSION: '1.5.1',
         CACHE_KEY: 'x_location_cache_v3', // v3 includes locationAccurate field
         BLOCKED_COUNTRIES_KEY: 'x_blocked_countries',
         CACHE_EXPIRY: 48 * 60 * 60 * 1000, // 48 hours (extended from 24)
@@ -725,15 +725,46 @@
         injectSidebarLink() {
             // Wait for sidebar to load
             const checkSidebar = setInterval(() => {
-                const nav = document.querySelector('nav[aria-label="Primary"]');
+                // Try multiple selectors to be language-agnostic
+                let nav = document.querySelector('nav[aria-label="Primary"]'); // English
+                
+                // Fallback: look for nav with role="navigation" that contains profile link
+                if (!nav) {
+                    const allNavs = document.querySelectorAll('nav[role="navigation"]');
+                    for (const n of allNavs) {
+                        if (n.querySelector('[data-testid="AppTabBar_Profile_Link"]')) {
+                            nav = n;
+                            break;
+                        }
+                    }
+                }
+                
+                // Additional fallback: look for header > div > nav structure
+                if (!nav) {
+                    const headers = document.querySelectorAll('header');
+                    for (const header of headers) {
+                        const n = header.querySelector('nav');
+                        if (n && n.querySelector('[data-testid="AppTabBar_Profile_Link"]')) {
+                            nav = n;
+                            break;
+                        }
+                    }
+                }
+                
                 if (nav) {
                     clearInterval(checkSidebar);
+                    console.log('✅ Sidebar navigation found, adding Block Countries link');
                     this.addBlockerLink(nav);
+                } else {
+                    console.debug('⏳ Waiting for sidebar navigation...');
                 }
             }, 500);
 
             // Stop after 10 seconds if not found
-            setTimeout(() => clearInterval(checkSidebar), 10000);
+            setTimeout(() => {
+                clearInterval(checkSidebar);
+                console.warn('⚠️ Sidebar navigation not found after 10 seconds');
+            }, 10000);
         }
 
         addBlockerLink(nav) {

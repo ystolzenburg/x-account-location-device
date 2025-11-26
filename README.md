@@ -137,6 +137,11 @@ XFlagScript.debug()
 
 ## 📜 Changelog
 
+### v1.5.1 - Multi-Language Support Fix
+- **FIXED: Language Support**: Block Countries menu now appears in all language versions
+- **Improved Navigation Detection**: Uses language-agnostic selectors to find sidebar navigation
+- **Better Logging**: Added console messages for easier debugging of sidebar injection
+
 ### v1.5.0 - VPN/Proxy Detection & Performance
 - **NEW: VPN/Proxy Indicator** 🔒: See when users may be masking their location
 - **Smart Detection**: Uses X's `location_accurate` field to identify VPN/proxy usage
