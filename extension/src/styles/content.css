@@ -1,0 +1,777 @@
+/**
+ * Content Script Styles
+ * Injected into X pages for badges, modal, and other UI elements
+ */
+
+/* Shimmer loading animation */
+@keyframes x-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.x-flag-shimmer {
+    display: inline-block;
+    width: 20px;
+    height: 16px;
+    margin: 0 4px;
+    vertical-align: middle;
+    border-radius: 2px;
+    background: linear-gradient(90deg, 
+        rgba(113, 118, 123, 0.2) 25%, 
+        rgba(113, 118, 123, 0.4) 50%, 
+        rgba(113, 118, 123, 0.2) 75%
+    );
+    background-size: 200% 100%;
+    animation: x-shimmer 1.5s infinite;
+}
+
+/* Info Badge - Pill Style */
+.x-info-badge {
+    margin: 0 4px 0 6px;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    gap: 3px;
+    font-family: "Twemoji Mozilla", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "EmojiOne Color", "Android Emoji", sans-serif;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 12px;
+    transition: all 0.15s ease;
+    cursor: help;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.x-info-badge:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Light theme badge styles */
+[data-x-theme="light"] .x-info-badge {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-x-theme="light"] .x-info-badge:hover {
+    background: rgba(0, 0, 0, 0.12);
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+.x-info-badge .x-flag,
+.x-info-badge .x-device,
+.x-info-badge .x-vpn {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+/* Separator between items */
+.x-info-badge .x-flag + .x-vpn::before,
+.x-info-badge .x-flag + .x-device::before,
+.x-info-badge .x-vpn + .x-device::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 3px;
+    vertical-align: middle;
+}
+
+/* Light theme separator */
+[data-x-theme="light"] .x-info-badge .x-flag + .x-vpn::before,
+[data-x-theme="light"] .x-info-badge .x-flag + .x-device::before,
+[data-x-theme="light"] .x-info-badge .x-vpn + .x-device::before {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.x-flag-emoji {
+    height: 1.1em;
+    vertical-align: -0.1em;
+}
+
+/* Subtle glow for VPN indicator */
+.x-info-badge .x-vpn {
+    filter: drop-shadow(0 0 2px rgba(255, 200, 0, 0.3));
+}
+
+/* Camera capture button - hidden by default */
+.x-capture-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 2px;
+    margin-left: 2px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+/* Show camera on badge hover */
+.x-info-badge:hover .x-capture-btn {
+    display: inline-flex;
+    opacity: 1;
+    transform: scale(1);
+}
+
+.x-capture-btn:hover {
+    color: #1d9bf0;
+    background: rgba(29, 155, 240, 0.1);
+}
+
+.x-capture-btn:active {
+    transform: scale(0.9);
+}
+
+/* Light theme camera button */
+[data-x-theme="light"] .x-capture-btn {
+    color: rgba(0, 0, 0, 0.4);
+}
+
+[data-x-theme="light"] .x-capture-btn:hover {
+    color: #1d9bf0;
+    background: rgba(29, 155, 240, 0.1);
+}
+
+/* Hidden tweet */
+.x-tweet-blocked {
+    display: none !important;
+}
+
+/* Country Blocker Modal Overlay */
+.x-blocker-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+/* Modal */
+.x-blocker-modal {
+    background: rgb(0, 0, 0);
+    border-radius: 16px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    border: 1px solid rgb(47, 51, 54);
+}
+
+/* Light theme modal */
+[data-x-theme="light"] .x-blocker-modal {
+    background: rgb(255, 255, 255);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
+    border-color: rgb(207, 217, 222);
+}
+
+/* Dim theme modal - uses dark blue background similar to X's dim mode */
+[data-x-theme="dim"] .x-blocker-modal {
+    background: rgb(21, 32, 43);
+    border-color: rgb(56, 68, 77);
+}
+
+/* Modal Header */
+.x-blocker-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgb(47, 51, 54);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+[data-x-theme="light"] .x-blocker-header {
+    border-bottom-color: rgb(207, 217, 222);
+}
+
+[data-x-theme="dim"] .x-blocker-header {
+    border-bottom-color: rgb(56, 68, 77);
+}
+
+.x-blocker-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: rgb(231, 233, 234);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+}
+
+[data-x-theme="light"] .x-blocker-title {
+    color: rgb(15, 20, 25);
+}
+
+.x-blocker-title svg {
+    margin-right: 8px;
+}
+
+[data-x-theme="light"] .x-blocker-title svg {
+    fill: rgb(15, 20, 25);
+}
+
+.x-blocker-close {
+    background: none;
+    border: none;
+    color: rgb(231, 233, 234);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+[data-x-theme="light"] .x-blocker-close {
+    color: rgb(15, 20, 25);
+}
+
+.x-blocker-close:hover {
+    background: rgba(231, 233, 234, 0.1);
+}
+
+[data-x-theme="light"] .x-blocker-close:hover {
+    background: rgba(15, 20, 25, 0.1);
+}
+
+/* Modal Body */
+.x-blocker-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.x-blocker-info {
+    color: rgb(113, 118, 123);
+    font-size: 14px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.x-blocker-search {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 24px;
+    background: rgb(32, 35, 39);
+    border: 1px solid rgb(47, 51, 54);
+    color: rgb(231, 233, 234);
+    font-size: 15px;
+    margin-bottom: 16px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+[data-x-theme="light"] .x-blocker-search {
+    background: rgb(239, 243, 244);
+    border-color: rgb(207, 217, 222);
+    color: rgb(15, 20, 25);
+}
+
+[data-x-theme="dim"] .x-blocker-search {
+    background: rgb(39, 51, 64);
+    border-color: rgb(56, 68, 77);
+}
+
+.x-blocker-search:focus {
+    border-color: rgb(29, 155, 240);
+}
+
+.x-blocker-search::placeholder {
+    color: rgb(113, 118, 123);
+}
+
+/* Countries Grid */
+.x-blocker-countries {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 8px;
+}
+
+.x-country-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgb(22, 24, 28);
+    border: 1px solid rgb(47, 51, 54);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+}
+
+[data-x-theme="light"] .x-country-item {
+    background: rgb(247, 249, 249);
+    border-color: rgb(207, 217, 222);
+}
+
+[data-x-theme="dim"] .x-country-item {
+    background: rgb(30, 42, 54);
+    border-color: rgb(56, 68, 77);
+}
+
+.x-country-item:hover {
+    background: rgb(32, 35, 39);
+    border-color: rgb(113, 118, 123);
+}
+
+[data-x-theme="light"] .x-country-item:hover {
+    background: rgb(239, 243, 244);
+    border-color: rgb(113, 118, 123);
+}
+
+[data-x-theme="dim"] .x-country-item:hover {
+    background: rgb(39, 51, 64);
+    border-color: rgb(113, 118, 123);
+}
+
+.x-country-item.blocked {
+    background: rgba(244, 33, 46, 0.1);
+    border-color: rgb(244, 33, 46);
+}
+
+.x-country-flag {
+    font-size: 24px;
+    line-height: 1;
+    font-family: "Twemoji Mozilla", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+}
+
+.x-country-name {
+    flex: 1;
+    color: rgb(231, 233, 234);
+    font-size: 15px;
+}
+
+[data-x-theme="light"] .x-country-name {
+    color: rgb(15, 20, 25);
+}
+
+.x-country-status {
+    font-size: 12px;
+    color: rgb(244, 33, 46);
+    font-weight: 600;
+}
+
+/* Modal Footer */
+.x-blocker-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgb(47, 51, 54);
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+[data-x-theme="light"] .x-blocker-footer {
+    border-top-color: rgb(207, 217, 222);
+}
+
+[data-x-theme="dim"] .x-blocker-footer {
+    border-top-color: rgb(56, 68, 77);
+}
+
+.x-blocker-stats {
+    color: rgb(113, 118, 123);
+    font-size: 14px;
+}
+
+.x-blocker-btn {
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    font-family: inherit;
+}
+
+.x-blocker-btn-primary {
+    background: rgb(29, 155, 240);
+    color: white;
+}
+
+.x-blocker-btn-primary:hover {
+    background: rgb(26, 140, 216);
+}
+
+.x-blocker-btn-secondary {
+    background: transparent;
+    color: rgb(239, 243, 244);
+    border: 1px solid rgb(83, 100, 113);
+}
+
+[data-x-theme="light"] .x-blocker-btn-secondary {
+    color: rgb(15, 20, 25);
+    border-color: rgb(207, 217, 222);
+}
+
+.x-blocker-btn-secondary:hover {
+    background: rgba(239, 243, 244, 0.1);
+}
+
+[data-x-theme="light"] .x-blocker-btn-secondary:hover {
+    background: rgba(15, 20, 25, 0.1);
+}
+
+/* Sidebar Link */
+#x-country-blocker-link {
+    transition: background 0.2s;
+}
+
+#x-country-blocker-link:hover {
+    background: rgba(231, 233, 234, 0.1);
+}
+
+[data-x-theme="light"] #x-country-blocker-link:hover {
+    background: rgba(15, 20, 25, 0.1);
+}
+
+/* Sidebar link text - default dark/dim mode */
+.x-blocker-text {
+    color: rgb(231, 233, 234);
+}
+
+/* Sidebar link icon - default dark/dim mode */
+.x-blocker-icon svg {
+    fill: rgb(231, 233, 234);
+}
+
+/* Light theme sidebar */
+[data-x-theme="light"] .x-blocker-text {
+    color: rgb(15, 20, 25);
+}
+
+[data-x-theme="light"] .x-blocker-icon svg {
+    fill: rgb(15, 20, 25);
+}
+
+/* Scrollbar styling for modal */
+.x-blocker-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.x-blocker-body::-webkit-scrollbar-track {
+    background: rgb(22, 24, 28);
+    border-radius: 4px;
+}
+
+[data-x-theme="light"] .x-blocker-body::-webkit-scrollbar-track {
+    background: rgb(239, 243, 244);
+}
+
+[data-x-theme="dim"] .x-blocker-body::-webkit-scrollbar-track {
+    background: rgb(30, 42, 54);
+}
+
+.x-blocker-body::-webkit-scrollbar-thumb {
+    background: rgb(47, 51, 54);
+    border-radius: 4px;
+}
+
+[data-x-theme="light"] .x-blocker-body::-webkit-scrollbar-thumb {
+    background: rgb(207, 217, 222);
+}
+
+[data-x-theme="dim"] .x-blocker-body::-webkit-scrollbar-thumb {
+    background: rgb(56, 68, 77);
+}
+
+.x-blocker-body::-webkit-scrollbar-thumb:hover {
+    background: rgb(113, 118, 123);
+}
+
+/* Animation for modal entrance */
+@keyframes x-modal-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.x-blocker-modal {
+    animation: x-modal-in 0.2s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .x-blocker-modal {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .x-blocker-countries {
+        grid-template-columns: 1fr;
+    }
+
+    .x-blocker-footer {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .x-blocker-footer > div:last-child {
+        width: 100%;
+        display: flex;
+        gap: 12px;
+    }
+
+    .x-blocker-btn {
+        flex: 1;
+    }
+}
+
+/* ============================================
+   EVIDENCE CAPTURE MODAL
+   ============================================ */
+
+/* Evidence Modal Overlay */
+.x-evidence-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    animation: x-modal-in 0.2s ease-out;
+}
+
+/* Evidence Modal */
+.x-evidence-modal {
+    background: rgb(0, 0, 0);
+    border-radius: 16px;
+    max-width: 700px;
+    width: 95%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 60px rgba(29, 155, 240, 0.2);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    border: 1px solid rgb(47, 51, 54);
+    animation: x-modal-in 0.25s ease-out;
+}
+
+/* Light theme */
+[data-x-theme="light"] .x-evidence-modal {
+    background: rgb(255, 255, 255);
+    border-color: rgb(207, 217, 222);
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.15);
+}
+
+/* Dim theme */
+[data-x-theme="dim"] .x-evidence-modal {
+    background: rgb(21, 32, 43);
+    border-color: rgb(56, 68, 77);
+}
+
+/* Evidence Header */
+.x-evidence-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgb(47, 51, 54);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+[data-x-theme="light"] .x-evidence-header {
+    border-bottom-color: rgb(207, 217, 222);
+}
+
+[data-x-theme="dim"] .x-evidence-header {
+    border-bottom-color: rgb(56, 68, 77);
+}
+
+.x-evidence-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: rgb(231, 233, 234);
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+[data-x-theme="light"] .x-evidence-title {
+    color: rgb(15, 20, 25);
+}
+
+.x-evidence-close {
+    background: none;
+    border: none;
+    color: rgb(231, 233, 234);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+[data-x-theme="light"] .x-evidence-close {
+    color: rgb(15, 20, 25);
+}
+
+.x-evidence-close:hover {
+    background: rgba(231, 233, 234, 0.1);
+}
+
+[data-x-theme="light"] .x-evidence-close:hover {
+    background: rgba(15, 20, 25, 0.1);
+}
+
+/* Evidence Body */
+.x-evidence-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.x-evidence-preview {
+    max-width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.x-evidence-preview img {
+    max-width: 100%;
+    max-height: 50vh;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Evidence Footer */
+.x-evidence-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgb(47, 51, 54);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+[data-x-theme="light"] .x-evidence-footer {
+    border-top-color: rgb(207, 217, 222);
+}
+
+[data-x-theme="dim"] .x-evidence-footer {
+    border-top-color: rgb(56, 68, 77);
+}
+
+.x-evidence-filename {
+    color: rgb(113, 118, 123);
+    font-size: 12px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    text-align: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-x-theme="light"] .x-evidence-filename {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.x-evidence-buttons {
+    display: flex;
+    justify-content: center;
+}
+
+.x-evidence-btn {
+    padding: 14px 36px;
+    border-radius: 28px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.x-evidence-btn-primary {
+    background: linear-gradient(135deg, rgb(29, 155, 240), rgb(26, 140, 216));
+    color: white;
+    box-shadow: 0 4px 14px rgba(29, 155, 240, 0.4);
+}
+
+.x-evidence-btn-primary:hover {
+    background: linear-gradient(135deg, rgb(26, 140, 216), rgb(22, 125, 200));
+    transform: scale(1.03);
+    box-shadow: 0 6px 20px rgba(29, 155, 240, 0.5);
+}
+
+.x-evidence-btn-primary:active {
+    transform: scale(0.98);
+}
+
+/* Animation for notifications */
+@keyframes x-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes x-slide-down {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+/* Responsive for evidence modal */
+@media (max-width: 600px) {
+    .x-evidence-modal {
+        width: 98%;
+        max-height: 95vh;
+    }
+    
+    .x-evidence-buttons {
+        flex-direction: column;
+    }
+    
+    .x-evidence-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

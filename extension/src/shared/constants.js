@@ -1,0 +1,186 @@
+/**
+ * X-Posed Extension Constants
+ * Centralized configuration for cross-browser compatibility
+ */
+
+export const VERSION = '2.0.0';
+
+// Storage keys
+export const STORAGE_KEYS = {
+    CACHE: 'x_location_cache_v4',
+    BLOCKED_COUNTRIES: 'x_blocked_countries',
+    SETTINGS: 'x_location_settings',
+    HEADERS: 'x_api_headers',
+    THEME: 'x_theme_preference',
+    CLOUD_CACHE_ENABLED: 'x_cloud_cache_enabled',
+    CLOUD_STATS: 'x_cloud_stats',
+    LAST_VERSION: 'x_last_version',
+    WHATS_NEW_SEEN: 'x_whats_new_seen'
+};
+
+// Cloud Community Cache configuration
+export const CLOUD_CACHE_CONFIG = {
+    // Cloudflare Worker URL
+    API_URL: 'https://x-posed-cache.xaitax.workers.dev',
+    
+    // Batch settings
+    BATCH_SIZE: 50,              // Max usernames per lookup request
+    BATCH_DELAY_MS: 100,         // Delay to collect batch
+    CONTRIBUTE_BATCH_SIZE: 100,  // Max entries per contribute request
+    CONTRIBUTE_DELAY_MS: 5000,   // Delay before contributing (debounce)
+    
+    // Timeouts
+    LOOKUP_TIMEOUT_MS: 3000,     // Max time to wait for cloud lookup
+    CONTRIBUTE_TIMEOUT_MS: 5000, // Max time for contribute request
+    
+    // Retry settings
+    MAX_RETRIES: 2,
+    RETRY_DELAY_MS: 1000,
+    
+    // Rate limiting (client-side)
+    MAX_REQUESTS_PER_MINUTE: 60,
+    
+    // Feature flags
+    ENABLED_BY_DEFAULT: false    // Opt-in only
+};
+
+// Cache configuration
+export const CACHE_CONFIG = {
+    EXPIRY_MS: 14 * 24 * 60 * 60 * 1000, // 2 weeks (location data rarely changes)
+    MAX_ENTRIES: 50000, // LRU cache limit (each entry is ~100-200 bytes)
+    SAVE_INTERVAL_MS: 30000 // 30 seconds
+};
+
+// API configuration
+export const API_CONFIG = {
+    QUERY_ID: 'XRqGa7EeokUU5kppkh13EA', // AboutAccountQuery
+    BASE_URL: 'https://x.com/i/api/graphql',
+    MIN_INTERVAL_MS: 300,    // Reduced from 2000ms for faster lookups
+    MAX_CONCURRENT: 5,       // Increased from 2 for more parallel requests
+    RETRY_DELAY_MS: 3000,
+    MAX_RETRIES: 2,
+    RATE_LIMIT_WINDOW_MS: 60000
+};
+
+// DOM selectors for X platform
+export const SELECTORS = {
+    USERNAME: '[data-testid="UserName"], [data-testid="User-Name"]',
+    TWEET: 'article[data-testid="tweet"]',
+    USER_CELL: '[data-testid="UserCell"]',
+    PROFILE_LINK: '[data-testid="AppTabBar_Profile_Link"]',
+    PRIMARY_NAV: 'nav[aria-label="Primary"]',
+    NAV_ROLE: 'nav[role="navigation"]'
+};
+
+// CSS class names
+export const CSS_CLASSES = {
+    FLAG_SHIMMER: 'x-flag-shimmer',
+    INFO_BADGE: 'x-info-badge',
+    TWEET_BLOCKED: 'x-tweet-blocked',
+    MODAL_OVERLAY: 'x-blocker-modal-overlay',
+    MODAL: 'x-blocker-modal',
+    PROCESSED: 'x-processed'
+};
+
+// Message types for cross-context communication
+export const MESSAGE_TYPES = {
+    // Content script to background
+    FETCH_USER_INFO: 'FETCH_USER_INFO',
+    CAPTURE_HEADERS: 'CAPTURE_HEADERS',
+    GET_CACHE: 'GET_CACHE',
+    SET_CACHE: 'SET_CACHE',
+    GET_SETTINGS: 'GET_SETTINGS',
+    SET_SETTINGS: 'SET_SETTINGS',
+    GET_BLOCKED_COUNTRIES: 'GET_BLOCKED_COUNTRIES',
+    SET_BLOCKED_COUNTRIES: 'SET_BLOCKED_COUNTRIES',
+    GET_STATISTICS: 'GET_STATISTICS',
+    GET_THEME: 'GET_THEME',
+    SET_THEME: 'SET_THEME',
+    
+    // Cloud cache
+    GET_CLOUD_CACHE_STATUS: 'GET_CLOUD_CACHE_STATUS',
+    SET_CLOUD_CACHE_ENABLED: 'SET_CLOUD_CACHE_ENABLED',
+    GET_CLOUD_STATS: 'GET_CLOUD_STATS',
+    GET_CLOUD_SERVER_STATS: 'GET_CLOUD_SERVER_STATS',
+    SYNC_LOCAL_TO_CLOUD: 'SYNC_LOCAL_TO_CLOUD',
+    
+    // Background to content script
+    USER_INFO_RESULT: 'USER_INFO_RESULT',
+    SETTINGS_UPDATED: 'SETTINGS_UPDATED',
+    BLOCKED_COUNTRIES_UPDATED: 'BLOCKED_COUNTRIES_UPDATED',
+    THEME_UPDATED: 'THEME_UPDATED',
+    
+    // Page script to content script (via custom events)
+    HEADERS_CAPTURED: 'X_HEADERS_CAPTURED',
+    API_REQUEST: 'X_API_REQUEST'
+};
+
+// Default settings
+export const DEFAULT_SETTINGS = {
+    enabled: true,
+    showFlags: true,
+    showDevices: true,
+    showVpnIndicator: true,
+    debugMode: false,
+    cloudCacheEnabled: false  // Opt-in only
+};
+
+// Bearer token for X API (public, embedded in X's own code)
+export const BEARER_TOKEN = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA';
+
+// Country flags mapping (optimized for O(1) lookup)
+export const COUNTRY_FLAGS = {
+    "afghanistan": "🇦🇫", "albania": "🇦🇱", "algeria": "🇩🇿", "andorra": "🇦🇩", "angola": "🇦🇴",
+    "antigua and barbuda": "🇦🇬", "argentina": "🇦🇷", "armenia": "🇦🇲", "australia": "🇦🇺", "austria": "🇦🇹",
+    "azerbaijan": "🇦🇿", "bahamas": "🇧🇸", "bahrain": "🇧🇭", "bangladesh": "🇧🇩", "barbados": "🇧🇧",
+    "belarus": "🇧🇾", "belgium": "🇧🇪", "belize": "🇧🇿", "benin": "🇧🇯", "bhutan": "🇧🇹",
+    "bolivia": "🇧🇴", "bosnia and herzegovina": "🇧🇦", "bosnia": "🇧🇦", "botswana": "🇧🇼", "brazil": "🇧🇷",
+    "brunei": "🇧🇳", "bulgaria": "🇧🇬", "burkina faso": "🇧🇫", "burundi": "🇧🇮", "cambodia": "🇰🇭",
+    "cameroon": "🇨🇲", "canada": "🇨🇦", "cape verde": "🇨🇻", "central african republic": "🇨🇫", "chad": "🇹🇩",
+    "chile": "🇨🇱", "china": "🇨🇳", "colombia": "🇨🇴", "comoros": "🇰🇲", "congo": "🇨🇬",
+    "costa rica": "🇨🇷", "croatia": "🇭🇷", "cuba": "🇨🇺", "cyprus": "🇨🇾", "czech republic": "🇨🇿",
+    "czechia": "🇨🇿", "democratic republic of the congo": "🇨🇩", "denmark": "🇩🇰", "djibouti": "🇩🇯", "dominica": "🇩🇲",
+    "dominican republic": "🇩🇴", "east timor": "🇹🇱", "ecuador": "🇪🇨", "egypt": "🇪🇬", "el salvador": "🇸🇻",
+    "england": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "equatorial guinea": "🇬🇶", "eritrea": "🇪🇷", "estonia": "🇪🇪", "eswatini": "🇸🇿",
+    "ethiopia": "🇪🇹", "europe": "🇪🇺", "european union": "🇪🇺", "fiji": "🇫🇯", "finland": "🇫🇮",
+    "france": "🇫🇷", "gabon": "🇬🇦", "gambia": "🇬🇲", "georgia": "🇬🇪", "germany": "🇩🇪",
+    "ghana": "🇬🇭", "greece": "🇬🇷", "grenada": "🇬🇩", "guatemala": "🇬🇹", "guinea": "🇬🇳",
+    "guinea-bissau": "🇬🇼", "guyana": "🇬🇾", "haiti": "🇭🇹", "honduras": "🇭🇳", "hong kong": "🇭🇰",
+    "hungary": "🇭🇺", "iceland": "🇮🇸", "india": "🇮🇳", "indonesia": "🇮🇩", "iran": "🇮🇷",
+    "iraq": "🇮🇶", "ireland": "🇮🇪", "israel": "🇮🇱", "italy": "🇮🇹", "ivory coast": "🇨🇮",
+    "jamaica": "🇯🇲", "japan": "🇯🇵", "jordan": "🇯🇴", "kazakhstan": "🇰🇿", "kenya": "🇰🇪",
+    "kiribati": "🇰🇮", "korea": "🇰🇷", "kosovo": "🇽🇰", "kuwait": "🇰🇼", "kyrgyzstan": "🇰🇬",
+    "laos": "🇱🇦", "latvia": "🇱🇻", "lebanon": "🇱🇧", "lesotho": "🇱🇸", "liberia": "🇱🇷",
+    "libya": "🇱🇾", "liechtenstein": "🇱🇮", "lithuania": "🇱🇹", "luxembourg": "🇱🇺", "macao": "🇲🇴",
+    "macau": "🇲🇴", "madagascar": "🇲🇬", "malawi": "🇲🇼", "malaysia": "🇲🇾", "maldives": "🇲🇻",
+    "mali": "🇲🇱", "malta": "🇲🇹", "marshall islands": "🇲🇭", "mauritania": "🇲🇷", "mauritius": "🇲🇺",
+    "mexico": "🇲🇽", "micronesia": "🇫🇲", "moldova": "🇲🇩", "monaco": "🇲🇨", "mongolia": "🇲🇳",
+    "montenegro": "🇲🇪", "morocco": "🇲🇦", "mozambique": "🇲🇿", "myanmar": "🇲🇲", "burma": "🇲🇲",
+    "namibia": "🇳🇦", "nauru": "🇳🇷", "nepal": "🇳🇵", "netherlands": "🇳🇱", "new zealand": "🇳🇿",
+    "nicaragua": "🇳🇮", "niger": "🇳🇪", "nigeria": "🇳🇬", "north korea": "🇰🇵", "north macedonia": "🇲🇰",
+    "macedonia": "🇲🇰", "norway": "🇳🇴", "oman": "🇴🇲", "pakistan": "🇵🇰", "palau": "🇵🇼",
+    "palestine": "🇵🇸", "panama": "🇵🇦", "papua new guinea": "🇵🇬", "paraguay": "🇵🇾", "peru": "🇵🇪",
+    "philippines": "🇵🇭", "poland": "🇵🇱", "portugal": "🇵🇹", "puerto rico": "🇵🇷", "qatar": "🇶🇦",
+    "romania": "🇷🇴", "russia": "🇷🇺", "russian federation": "🇷🇺", "rwanda": "🇷🇼", "saint kitts and nevis": "🇰🇳",
+    "saint lucia": "🇱🇨", "saint vincent and the grenadines": "🇻🇨", "samoa": "🇼🇸", "san marino": "🇸🇲", "sao tome and principe": "🇸🇹",
+    "saudi arabia": "🇸🇦", "scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "senegal": "🇸🇳", "serbia": "🇷🇸", "seychelles": "🇸🇨",
+    "sierra leone": "🇸🇱", "singapore": "🇸🇬", "slovakia": "🇸🇰", "slovenia": "🇸🇮", "solomon islands": "🇸🇧",
+    "somalia": "🇸🇴", "south africa": "🇿🇦", "south korea": "🇰🇷", "south sudan": "🇸🇸", "spain": "🇪🇸",
+    "sri lanka": "🇱🇰", "sudan": "🇸🇩", "suriname": "🇸🇷", "sweden": "🇸🇪", "switzerland": "🇨🇭",
+    "syria": "🇸🇾", "taiwan": "🇹🇼", "tajikistan": "🇹🇯", "tanzania": "🇹🇿", "thailand": "🇹🇭",
+    "timor-leste": "🇹🇱", "togo": "🇹🇬", "tonga": "🇹🇴", "trinidad and tobago": "🇹🇹", "tunisia": "🇹🇳",
+    "turkey": "🇹🇷", "türkiye": "🇹🇷", "turkmenistan": "🇹🇲", "tuvalu": "🇹🇻", "uganda": "🇺🇬",
+    "ukraine": "🇺🇦", "united arab emirates": "🇦🇪", "uae": "🇦🇪", "united kingdom": "🇬🇧", "uk": "🇬🇧",
+    "great britain": "🇬🇧", "britain": "🇬🇧", "united states": "🇺🇸", "usa": "🇺🇸", "us": "🇺🇸",
+    "uruguay": "🇺🇾", "uzbekistan": "🇺🇿", "vanuatu": "🇻🇺", "vatican city": "🇻🇦", "venezuela": "🇻🇪",
+    "vietnam": "🇻🇳", "viet nam": "🇻🇳", "wales": "🏴󠁧󠁢󠁷󠁬󠁳󠁿", "yemen": "🇾🇪", "zambia": "🇿🇲", "zimbabwe": "🇿🇼"
+};
+
+// Get sorted country list for UI
+export const COUNTRY_LIST = Object.keys(COUNTRY_FLAGS)
+    .filter((name, index, arr) => {
+        // Remove duplicates (keep canonical names)
+        const duplicates = ['bosnia', 'czechia', 'macedonia', 'burma', 'macau', 'uk', 'usa', 'us', 'uae', 'britain', 'great britain'];
+        return !duplicates.includes(name);
+    })
+    .sort();

@@ -1,0 +1,55 @@
+{
+  "name": "x-posed-extension",
+  "version": "2.0.0",
+  "description": "See where X users are located and what devices they use. Country flags & device icons next to every username. Optional geo-blocking.",
+  "type": "module",
+  "scripts": {
+    "dev": "rollup -c -w",
+    "dev:chrome": "cross-env BROWSER=chrome rollup -c -w",
+    "dev:firefox": "cross-env BROWSER=firefox rollup -c -w",
+    "build": "npm run build:chrome && npm run build:firefox",
+    "build:chrome": "cross-env BROWSER=chrome rollup -c",
+    "build:firefox": "cross-env BROWSER=firefox rollup -c",
+    "build:prod": "cross-env NODE_ENV=production npm run build",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "package:chrome": "npm run build:chrome && node scripts/zip.js chrome",
+    "package:firefox": "npm run build:firefox && node scripts/zip.js firefox",
+    "package": "npm run package:chrome && npm run package:firefox",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "archiver": "^6.0.1",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.56.0",
+    "rimraf": "^5.0.5",
+    "rollup": "^4.9.6",
+    "rollup-plugin-copy": "^3.5.0"
+  },
+  "keywords": [
+    "x",
+    "twitter",
+    "extension",
+    "chrome",
+    "firefox",
+    "location",
+    "device"
+  ],
+  "author": "xaitax",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xaitax/x-account-location-device"
+  },
+  "bugs": {
+    "url": "https://github.com/xaitax/x-account-location-device/issues"
+  },
+  "homepage": "https://github.com/xaitax/x-account-location-device#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

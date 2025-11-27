@@ -1,0 +1,592 @@
+/**
+ * Background Service Worker
+ * Centralized message handling and coordination for the extension
+ * Works in both Chrome (MV3 service worker) and Firefox (background script)
+ */
+
+import browserAPI from '../shared/browser-api.js';
+import { MESSAGE_TYPES, VERSION, STORAGE_KEYS } from '../shared/constants.js';
+import { userCache, blockedCountries, settings, headersStorage, initializeStorage } from '../shared/storage.js';
+import { apiClient, API_ERROR_CODES } from './api-client.js';
+import { calculateStatistics } from '../shared/utils.js';
+import cloudCache from './cloud-cache.js';
+
+// Version that triggers "What's New" notification (semantic versioning major.minor)
+const WHATS_NEW_VERSION = '2.0';
+
+// Track initialization state
+let initialized = false;
+
+/**
+ * Initialize the background worker
+ */
+async function initialize() {
+    if (initialized) return;
+    
+    console.log(`🚀 X-Posed v${VERSION} Background Worker starting...`);
+    
+    try {
+        // Initialize storage modules
+        await initializeStorage();
+        
+        // Initialize cloud cache
+        await cloudCache.init();
+        
+        // Restore cached headers to API client
+        const storedHeaders = headersStorage.get();
+        if (storedHeaders) {
+            apiClient.setHeaders(storedHeaders);
+        }
+        
+        initialized = true;
+        console.log('✅ Background worker initialized');
+    } catch (error) {
+        console.error('❌ Background worker initialization failed:', error);
+    }
+}
+
+/**
+ * Handle messages from content scripts and popup
+ */
+async function handleMessage(message, sender) {
+    // Ensure initialization
+    if (!initialized) {
+        await initialize();
+    }
+
+    const { type, payload } = message;
+
+    try {
+        switch (type) {
+            case MESSAGE_TYPES.FETCH_USER_INFO:
+                return await handleFetchUserInfo(payload);
+            
+            case MESSAGE_TYPES.CAPTURE_HEADERS:
+                return await handleCaptureHeaders(payload);
+            
+            case MESSAGE_TYPES.GET_CACHE:
+                return handleGetCache(payload);
+            
+            case MESSAGE_TYPES.SET_CACHE:
+                return handleSetCache(payload);
+            
+            case MESSAGE_TYPES.GET_SETTINGS:
+                return handleGetSettings();
+            
+            case MESSAGE_TYPES.SET_SETTINGS:
+                return await handleSetSettings(payload);
+            
+            case MESSAGE_TYPES.GET_BLOCKED_COUNTRIES:
+                return handleGetBlockedCountries();
+            
+            case MESSAGE_TYPES.SET_BLOCKED_COUNTRIES:
+                return await handleSetBlockedCountries(payload);
+            
+            case MESSAGE_TYPES.GET_STATISTICS:
+                return handleGetStatistics();
+            
+            case MESSAGE_TYPES.GET_THEME:
+                return handleGetTheme();
+            
+            case MESSAGE_TYPES.SET_THEME:
+                return await handleSetTheme(payload);
+            
+            // Cloud cache handlers
+            case MESSAGE_TYPES.GET_CLOUD_CACHE_STATUS:
+                return handleGetCloudCacheStatus();
+            
+            case MESSAGE_TYPES.SET_CLOUD_CACHE_ENABLED:
+                return await handleSetCloudCacheEnabled(payload);
+            
+            case MESSAGE_TYPES.GET_CLOUD_STATS:
+                return handleGetCloudStats();
+            
+            case MESSAGE_TYPES.GET_CLOUD_SERVER_STATS:
+                return await handleGetCloudServerStats();
+            
+            case MESSAGE_TYPES.SYNC_LOCAL_TO_CLOUD:
+                return await handleSyncLocalToCloud();
+            
+            default:
+                console.warn('Unknown message type:', type);
+                return { success: false, error: 'Unknown message type' };
+        }
+    } catch (error) {
+        console.error(`Error handling ${type}:`, error);
+        return { 
+            success: false, 
+            error: error.message,
+            code: error.code || 'UNKNOWN'
+        };
+    }
+}
+
+/**
+ * Fetch user info handler
+ */
+async function handleFetchUserInfo({ screenName, csrfToken }) {
+    // 1. Check local cache first
+    if (userCache.has(screenName)) {
+        const cached = userCache.get(screenName);
+        return {
+            success: true,
+            data: cached,
+            cached: true,
+            source: 'local'
+        };
+    }
+
+    // 2. Check cloud cache if enabled
+    if (cloudCache.isEnabled() && cloudCache.isConfigured()) {
+        try {
+            const cloudResults = await cloudCache.lookup([screenName]);
+            if (cloudResults.has(screenName.toLowerCase())) {
+                const cloudData = cloudResults.get(screenName.toLowerCase());
+                
+                // Store in local cache for future use
+                userCache.set(screenName, cloudData);
+                
+                return {
+                    success: true,
+                    data: cloudData,
+                    cached: true,
+                    source: 'cloud'
+                };
+            }
+        } catch (error) {
+            console.warn('☁️ Cloud cache lookup failed:', error.message);
+            // Continue to X API if cloud fails
+        }
+    }
+
+    // 3. Fetch from X API
+    try {
+        const data = await apiClient.fetchUserInfo(screenName, csrfToken);
+        
+        // Cache the result locally
+        userCache.set(screenName, data);
+        
+        // Contribute to cloud cache if enabled
+        if (cloudCache.isEnabled() && cloudCache.isConfigured()) {
+            cloudCache.contribute(screenName, data);
+        }
+        
+        return {
+            success: true,
+            data,
+            cached: false,
+            source: 'api'
+        };
+    } catch (error) {
+        // Log the error for debugging
+        console.warn(`❌ API error for @${screenName}:`, error.message, 'code:', error.code);
+        
+        // Return specific error information
+        return {
+            success: false,
+            error: error.message,
+            code: error.code || API_ERROR_CODES.UNKNOWN,
+            retryAfter: error.retryAfter || null
+        };
+    }
+}
+
+/**
+ * Capture headers handler
+ */
+async function handleCaptureHeaders({ headers }) {
+    const success = apiClient.setHeaders(headers);
+    
+    if (success) {
+        // Store headers for persistence across sessions
+        await headersStorage.save(headers);
+    }
+    
+    return { success };
+}
+
+/**
+ * Get cache handler
+ */
+function handleGetCache({ screenName }) {
+    if (screenName) {
+        const data = userCache.get(screenName);
+        return { 
+            success: true, 
+            data: data || null,
+            found: !!data
+        };
+    }
+    
+    // Return all cache entries
+    return {
+        success: true,
+        data: userCache.getAll(),
+        size: userCache.size
+    };
+}
+
+/**
+ * Set cache handler
+ */
+function handleSetCache({ screenName, data }) {
+    userCache.set(screenName, data);
+    return { success: true };
+}
+
+/**
+ * Get settings handler
+ */
+function handleGetSettings() {
+    return {
+        success: true,
+        data: settings.get()
+    };
+}
+
+/**
+ * Set settings handler
+ */
+async function handleSetSettings(newSettings) {
+    await settings.set(newSettings);
+    
+    // Notify all tabs about settings change
+    try {
+        const tabs = await browserAPI.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
+        for (const tab of tabs) {
+            try {
+                await browserAPI.tabs.sendMessage(tab.id, {
+                    type: MESSAGE_TYPES.SETTINGS_UPDATED,
+                    payload: settings.get()
+                });
+            } catch (e) {
+                // Tab might not have content script loaded
+            }
+        }
+    } catch (e) {
+        console.debug('Could not notify tabs:', e);
+    }
+    
+    return { success: true, data: settings.get() };
+}
+
+/**
+ * Get blocked countries handler
+ */
+function handleGetBlockedCountries() {
+    return {
+        success: true,
+        data: blockedCountries.getAll(),
+        size: blockedCountries.size
+    };
+}
+
+/**
+ * Set blocked countries handler
+ */
+async function handleSetBlockedCountries({ action, country, countries }) {
+    switch (action) {
+        case 'add':
+            blockedCountries.add(country);
+            break;
+        case 'remove':
+            blockedCountries.remove(country);
+            break;
+        case 'toggle':
+            blockedCountries.toggle(country);
+            break;
+        case 'clear':
+            await blockedCountries.clear();
+            break;
+        case 'set':
+            // Replace all blocked countries
+            await blockedCountries.clear();
+            for (const c of countries) {
+                blockedCountries.add(c);
+            }
+            break;
+    }
+    
+    // Notify all tabs about blocked countries change
+    try {
+        const tabs = await browserAPI.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
+        for (const tab of tabs) {
+            try {
+                await browserAPI.tabs.sendMessage(tab.id, {
+                    type: MESSAGE_TYPES.BLOCKED_COUNTRIES_UPDATED,
+                    payload: blockedCountries.getAll()
+                });
+            } catch (e) {
+                // Tab might not have content script loaded
+            }
+        }
+    } catch (e) {
+        console.debug('Could not notify tabs:', e);
+    }
+    
+    return { 
+        success: true, 
+        data: blockedCountries.getAll(),
+        size: blockedCountries.size
+    };
+}
+
+/**
+ * Get statistics handler
+ */
+function handleGetStatistics() {
+    const cacheEntries = userCache.getAll();
+    const stats = calculateStatistics(cacheEntries);
+    
+    return {
+        success: true,
+        data: stats
+    };
+}
+
+/**
+ * Get theme handler
+ */
+async function handleGetTheme() {
+    try {
+        const result = await browserAPI.storage.local.get(STORAGE_KEYS.THEME);
+        return {
+            success: true,
+            theme: result[STORAGE_KEYS.THEME] || 'dark'
+        };
+    } catch (error) {
+        return {
+            success: false,
+            theme: 'dark'
+        };
+    }
+}
+
+/**
+ * Set theme handler
+ */
+async function handleSetTheme({ theme }) {
+    try {
+        await browserAPI.storage.local.set({
+            [STORAGE_KEYS.THEME]: theme
+        });
+        
+        // Notify all tabs about theme change
+        try {
+            const tabs = await browserAPI.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
+            for (const tab of tabs) {
+                try {
+                    await browserAPI.tabs.sendMessage(tab.id, {
+                        type: MESSAGE_TYPES.THEME_UPDATED,
+                        payload: theme
+                    });
+                } catch (e) {
+                    // Tab might not have content script loaded
+                }
+            }
+        } catch (e) {
+            console.debug('Could not notify tabs:', e);
+        }
+        
+        return { success: true, theme };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Get cloud cache status handler
+ */
+function handleGetCloudCacheStatus() {
+    return {
+        success: true,
+        enabled: cloudCache.isEnabled(),
+        configured: cloudCache.isConfigured(),
+        stats: cloudCache.getStats()
+    };
+}
+
+/**
+ * Set cloud cache enabled handler
+ */
+async function handleSetCloudCacheEnabled({ enabled }) {
+    await cloudCache.setEnabled(enabled);
+    return {
+        success: true,
+        enabled: cloudCache.isEnabled()
+    };
+}
+
+/**
+ * Get cloud stats handler
+ */
+function handleGetCloudStats() {
+    return {
+        success: true,
+        stats: cloudCache.getStats()
+    };
+}
+
+/**
+ * Get cloud server stats handler (total entries in cloud cache)
+ */
+async function handleGetCloudServerStats() {
+    try {
+        const serverStats = await cloudCache.fetchServerStats();
+        return {
+            success: true,
+            serverStats
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
+ * Sync local cache to cloud handler
+ */
+async function handleSyncLocalToCloud() {
+    try {
+        // Get all local cache entries as array
+        const cacheArray = userCache.getAll();
+        
+        if (!cacheArray || cacheArray.length === 0) {
+            return {
+                success: true,
+                result: { synced: 0, skipped: 0, errors: 0, message: 'No local entries to sync' }
+            };
+        }
+        
+        // Convert array to object with screenName as key
+        const cacheEntries = {};
+        for (const entry of cacheArray) {
+            if (entry.screenName) {
+                cacheEntries[entry.screenName] = {
+                    location: entry.location,
+                    device: entry.device,
+                    locationAccurate: entry.locationAccurate
+                };
+            }
+        }
+        
+        if (Object.keys(cacheEntries).length === 0) {
+            return {
+                success: true,
+                result: { synced: 0, skipped: 0, errors: 0, message: 'No valid entries to sync' }
+            };
+        }
+        
+        // Bulk sync to cloud
+        const result = await cloudCache.bulkSync(cacheEntries);
+        
+        return {
+            success: true,
+            result
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
+ * Handle extension install/update
+ */
+async function handleInstalled(details) {
+    console.log('🎉 Extension installed/updated:', details.reason);
+    
+    if (details.reason === 'install') {
+        // First install - save current version
+        console.log('First install - welcome!');
+        await browserAPI.storage.local.set({
+            [STORAGE_KEYS.LAST_VERSION]: VERSION
+        });
+        // Open options page to welcome new users
+        browserAPI.runtime.openOptionsPage();
+    } else if (details.reason === 'update') {
+        // Extension updated
+        const previousVersion = details.previousVersion || '1.0.0';
+        console.log('Updated from version:', previousVersion);
+        
+        // Check if this is a major/minor version update that should show "What's New"
+        const prevMajorMinor = previousVersion.split('.').slice(0, 2).join('.');
+        const currentMajorMinor = VERSION.split('.').slice(0, 2).join('.');
+        
+        // Show "What's New" if updating to a new major/minor version
+        if (prevMajorMinor !== currentMajorMinor) {
+            console.log(`🆕 Major update: ${prevMajorMinor} → ${currentMajorMinor}`);
+            
+            // Mark that we should show the "What's New" banner
+            await browserAPI.storage.local.set({
+                [STORAGE_KEYS.LAST_VERSION]: VERSION,
+                [STORAGE_KEYS.WHATS_NEW_SEEN]: false
+            });
+            
+            // Open options page with "whats-new" parameter
+            const optionsUrl = browserAPI.runtime.getURL('options/options.html') + '?whats-new=true';
+            browserAPI.tabs.create({ url: optionsUrl });
+        } else {
+            // Minor patch update, just save version
+            await browserAPI.storage.local.set({
+                [STORAGE_KEYS.LAST_VERSION]: VERSION
+            });
+        }
+    }
+}
+
+/**
+ * Handle startup (when browser starts with extension already installed)
+ */
+function handleStartup() {
+    console.log('🌅 Browser startup - initializing...');
+    initialize();
+}
+
+// Set up message listener
+browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Handle async response
+    handleMessage(message, sender)
+        .then(response => {
+            sendResponse(response);
+        })
+        .catch(error => {
+            sendResponse({ 
+                success: false, 
+                error: error.message 
+            });
+        });
+    
+    // Return true to indicate async response
+    return true;
+});
+
+// Set up install/update listener (Chrome MV3 style)
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onInstalled) {
+    chrome.runtime.onInstalled.addListener(handleInstalled);
+}
+
+// Set up startup listener
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onStartup) {
+    chrome.runtime.onStartup.addListener(handleStartup);
+}
+
+// Firefox compatibility: browser.runtime instead of chrome.runtime
+if (typeof browser !== 'undefined' && browser.runtime) {
+    if (browser.runtime.onInstalled) {
+        browser.runtime.onInstalled.addListener(handleInstalled);
+    }
+    if (browser.runtime.onStartup) {
+        browser.runtime.onStartup.addListener(handleStartup);
+    }
+}
+
+// Initialize on load
+initialize();
+
+// Export for potential use in popup
+export { handleMessage, initialize };
