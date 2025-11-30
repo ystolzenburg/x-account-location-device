@@ -34,6 +34,8 @@ Every tweet shows the author's real location and device at a glance.
 | 🌐 | Web browser |
 | 🔒 | VPN/Proxy detected — location may not be accurate |
 
+<img width="453" height="792" alt="image" src="https://github.com/user-attachments/assets/aaa83d2e-a822-46e1-b0ba-0b8a4c9c32e8" />
+
 ---
 
 ### 🚫 Location Blocking
@@ -47,6 +49,8 @@ Filter your timeline by hiding or highlighting tweets from specific locations.
 - **Hide** (default) — Blocked tweets vanish from your feed
 - **Highlight** — Blocked tweets stay visible with a subtle amber border
 
+<img width="485" height="737" alt="image" src="https://github.com/user-attachments/assets/5a79a134-dba5-4699-8087-df4c2dd6f878" />
+
 ---
 
 ### 📸 Evidence Screenshot
@@ -54,6 +58,8 @@ Filter your timeline by hiding or highlighting tweets from specific locations.
 Capture any tweet with a forensic metadata overlay showing location, device, VPN status, and timestamp.
 
 Perfect for researchers, journalists, and OSINT professionals who need to document social media evidence.
+
+<img width="1062" height="1133" alt="image" src="https://github.com/user-attachments/assets/a243b826-9656-4f3c-9dce-94be9bcc2515" />
 
 ---
 
@@ -64,6 +70,8 @@ See your cached data at a glance:
 - 📱 **Device breakdown** — iOS vs Android vs Web distribution
 - 🔒 **VPN users** — Percentage of users detected with VPN/proxy
 - ☁️ **Cloud stats** — Community cache contribution metrics
+
+<img width="730" height="770" alt="image" src="https://github.com/user-attachments/assets/517d8c0d-badb-45d6-9d8d-52ab943477e6" />
 
 ---
 
@@ -129,6 +137,8 @@ Optional feature — Share anonymous lookups with other users.
 **Privacy:** Only username → location/device mappings are shared. No personal data, no IP logging.
 
 Enable in **Options → Cloud Cache → Enable Community Cache**.
+
+<img width="968" height="1062" alt="image" src="https://github.com/user-attachments/assets/c095e6c2-ff02-4025-9952-eb5269cb6218" />
 
 ---
 
