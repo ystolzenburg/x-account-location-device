@@ -1,9 +1,7 @@
 /**
  * X-Posed Mobile App - Deep Link Context
  * Handles incoming deep links and URL schemes
- * Supports:
- * - xposed://lookup, xposed://lookup/{username}
- * - Widget taps that open the app via URL scheme
+ * Supports: xposed://lookup, xposed://lookup/{username}
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';

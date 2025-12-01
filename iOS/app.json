@@ -20,9 +20,6 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Used for scanning QR codes",
         "NSPhotoLibraryUsageDescription": "Used for saving screenshots"
-      },
-      "entitlements": {
-        "com.apple.security.application-groups": ["group.com.xposed.mobile.shared"]
       }
     },
     "android": {
@@ -40,8 +37,7 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-web-browser",
-      "@bacons/apple-targets"
+      "expo-web-browser"
     ],
     "scheme": "xposed",
     "experiments": {

@@ -1,37 +1,17 @@
 /**
  * X-Posed Mobile App - History Hook
  * Manages lookup history with AsyncStorage persistence
- * Also syncs to iOS Home Screen Widget
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HistoryEntry, LocationEntry, LookupMode } from '../types';
-import { widgetService } from '../services/WidgetService';
 
 // Storage key
 const HISTORY_STORAGE_KEY = 'x_posed_lookup_history';
 
 // Maximum history entries (increased for batch scans)
 const MAX_HISTORY_ENTRIES = 2000;
-
-// Sync to widget on iOS
-const syncToWidget = async (entries: HistoryEntry[]) => {
-  if (Platform.OS !== 'ios') return;
-  
-  try {
-    // Convert history entries to widget format and sync
-    const widgetEntries = entries.slice(0, 10).map(entry => ({
-      username: entry.username,
-      data: entry.data,
-    }));
-    
-    await widgetService.syncEntries(widgetEntries);
-  } catch (error) {
-    // Silently fail widget sync - it's not critical
-  }
-};
 
 interface UseHistoryReturn {
   history: HistoryEntry[];
@@ -121,9 +101,6 @@ export function useHistory(): UseHistoryReturn {
         // Save to storage (async, don't await)
         saveHistory(limited);
         
-        // Sync to iOS widget
-        syncToWidget(limited);
-        
         return limited;
       });
     } catch (error) {
@@ -138,11 +115,6 @@ export function useHistory(): UseHistoryReturn {
     try {
       await AsyncStorage.removeItem(HISTORY_STORAGE_KEY);
       setHistory([]);
-      
-      // Clear widget as well
-      if (Platform.OS === 'ios') {
-        widgetService.clear();
-      }
     } catch (error) {
       throw error;
     }
