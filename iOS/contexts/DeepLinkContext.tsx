@@ -95,21 +95,13 @@ export function DeepLinkProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Also check for pending username from global (fallback)
+  // Check for pending username from global once on mount (legacy fallback)
   useEffect(() => {
-    const checkPending = () => {
-      const globalPending = (global as { pendingLookupUsername?: string }).pendingLookupUsername;
-      if (globalPending) {
-        setPendingUsernameState(globalPending);
-        delete (global as { pendingLookupUsername?: string }).pendingLookupUsername;
-      }
-    };
-    
-    checkPending();
-    
-    // Check periodically in case deep link comes after mount
-    const interval = setInterval(checkPending, 500);
-    return () => clearInterval(interval);
+    const globalPending = (global as { pendingLookupUsername?: string }).pendingLookupUsername;
+    if (globalPending) {
+      setPendingUsernameState(globalPending);
+      delete (global as { pendingLookupUsername?: string }).pendingLookupUsername;
+    }
   }, []);
 
   return (

@@ -23,6 +23,7 @@ interface ProfileImageCacheData {
 class ProfileImageCacheService {
   private cache: ProfileImageCacheData = { entries: {}, lastCleanup: 0 };
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -31,16 +32,34 @@ class ProfileImageCacheService {
 
   /**
    * Initialize the cache from AsyncStorage
+   * Uses a singleton promise to prevent race conditions
    */
   async init(): Promise<void> {
-    if (this.initialized) return;
+    // Return existing promise if already initializing
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    
+    // Already initialized
+    if (this.initialized) {
+      return Promise.resolve();
+    }
+    
+    // Create and store the initialization promise
+    this.initPromise = this.doInit();
+    return this.initPromise;
+  }
 
+  /**
+   * Internal initialization logic
+   */
+  private async doInit(): Promise<void> {
     try {
       const data = await AsyncStorage.getItem(CACHE_KEY);
       if (data) {
         const parsed = JSON.parse(data) as ProfileImageCacheData;
         this.cache = parsed;
-        console.log(`[ProfileImageCache] Loaded ${Object.keys(this.cache.entries).length} cached profile images`);
+        // Removed console.log for production
       }
       this.initialized = true;
 
@@ -49,8 +68,8 @@ class ProfileImageCacheService {
       if (Date.now() - this.cache.lastCleanup > dayMs) {
         this.cleanup();
       }
-    } catch (error) {
-      console.warn('[ProfileImageCache] Failed to load cache:', error);
+    } catch {
+      // Silent fail - use empty cache
       this.initialized = true;
     }
   }
@@ -97,7 +116,6 @@ class ProfileImageCacheService {
     };
 
     this.scheduleSave();
-    console.log(`[ProfileImageCache] Cached profile image for @${key}`);
   }
 
   /**
@@ -118,7 +136,6 @@ class ProfileImageCacheService {
   async clear(): Promise<void> {
     this.cache = { entries: {}, lastCleanup: Date.now() };
     await this.save();
-    console.log('[ProfileImageCache] Cache cleared');
   }
 
   /**
@@ -152,8 +169,8 @@ class ProfileImageCacheService {
   private async save(): Promise<void> {
     try {
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(this.cache));
-    } catch (error) {
-      console.warn('[ProfileImageCache] Failed to save cache:', error);
+    } catch {
+      // Silent fail - cache save is not critical
     }
   }
 
@@ -186,10 +203,6 @@ class ProfileImageCacheService {
 
     this.cache.lastCleanup = now;
     await this.save();
-
-    if (removedCount > 0) {
-      console.log(`[ProfileImageCache] Cleanup: removed ${removedCount} entries`);
-    }
   }
 }
 

@@ -1,6 +1,6 @@
 /**
  * X-Posed Mobile App - Rate Limit Hook
- * Tracks API rate limit status globally
+ * Tracks API rate limit status globally with efficient polling
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -21,9 +21,13 @@ interface UseRateLimitReturn {
   checkStatus: () => RateLimitStatus;
 }
 
+// Polling intervals
+const RATE_LIMITED_POLL_MS = 2000;
+const NORMAL_POLL_MS = 10000;
+
 /**
  * Hook to track rate limit status globally
- * Polls the XGraphQLAPI rate limit status and updates state
+ * Uses efficient polling with adaptive intervals
  */
 export function useRateLimit(): UseRateLimitReturn {
   const [status, setStatus] = useState<RateLimitStatus>({
@@ -33,13 +37,14 @@ export function useRateLimit(): UseRateLimitReturn {
   });
   const [dismissed, setDismissed] = useState(false);
   const lastResetTimeRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRateLimitedRef = useRef(false);
 
   /**
    * Check rate limit status from XGraphQLAPI
    */
   const checkStatus = useCallback((): RateLimitStatus => {
-    const apiStatus = XGraphQLAPI.getRateLimitStatus();
-    return apiStatus;
+    return XGraphQLAPI.getRateLimitStatus();
   }, []);
 
   /**
@@ -55,9 +60,20 @@ export function useRateLimit(): UseRateLimitReturn {
     }
     
     // If no longer rate limited, reset dismissed state
-    if (!newStatus.isRateLimited) {
+    if (!newStatus.isRateLimited && isRateLimitedRef.current) {
       lastResetTimeRef.current = null;
       setDismissed(false);
+    }
+    
+    // Track rate limit state change for interval adjustment
+    const wasRateLimited = isRateLimitedRef.current;
+    isRateLimitedRef.current = newStatus.isRateLimited;
+    
+    // Adjust polling interval when rate limit state changes
+    if (wasRateLimited !== newStatus.isRateLimited && intervalRef.current) {
+      clearInterval(intervalRef.current);
+      const newInterval = newStatus.isRateLimited ? RATE_LIMITED_POLL_MS : NORMAL_POLL_MS;
+      intervalRef.current = setInterval(updateStatus, newInterval);
     }
     
     setStatus(newStatus);
@@ -70,18 +86,21 @@ export function useRateLimit(): UseRateLimitReturn {
     setDismissed(true);
   }, []);
 
-  // Poll for rate limit status changes
+  // Setup polling on mount, cleanup on unmount
   useEffect(() => {
     // Initial check
     updateStatus();
     
-    // Poll every 2 seconds when rate limited, every 10 seconds otherwise
-    const interval = setInterval(() => {
-      updateStatus();
-    }, status.isRateLimited ? 2000 : 10000);
+    // Start with normal polling interval
+    intervalRef.current = setInterval(updateStatus, NORMAL_POLL_MS);
     
-    return () => clearInterval(interval);
-  }, [updateStatus, status.isRateLimited]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [updateStatus]);
 
   return {
     isRateLimited: status.isRateLimited && !dismissed,

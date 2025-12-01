@@ -5,143 +5,6 @@
 
 import { LocationEntry, Session, GraphQLResponse, BatchLookupResult, APIError } from '../types';
 
-// Debug mode - set to true to see detailed request/response logging
-const DEBUG_MODE = false;
-
-/**
- * Debug logger for detailed API inspection
- */
-const debugLog = {
-  request: (url: string, headers: Record<string, string>) => {
-    if (!DEBUG_MODE) return;
-    console.log('\n========== [DEBUG] API REQUEST ==========');
-    console.log('[DEBUG] URL:', url);
-    console.log('[DEBUG] Headers:');
-    Object.entries(headers).forEach(([key, value]) => {
-      // Mask sensitive data but show structure
-      if (key.toLowerCase() === 'cookie') {
-        console.log(`  ${key}: auth_token=***; ct0=***`);
-      } else if (key.toLowerCase() === 'authorization') {
-        console.log(`  ${key}: Bearer ***...${value.slice(-20)}`);
-      } else {
-        console.log(`  ${key}: ${value}`);
-      }
-    });
-    console.log('==========================================\n');
-  },
-
-  response: (status: number, statusText: string, headers: Headers) => {
-    if (!DEBUG_MODE) return;
-    console.log('\n========== [DEBUG] API RESPONSE ==========');
-    console.log('[DEBUG] Status:', status, statusText);
-    console.log('[DEBUG] Response Headers:');
-    headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`);
-    });
-    console.log('==========================================\n');
-  },
-
-  responseBody: (data: any, username: string) => {
-    if (!DEBUG_MODE) return;
-    console.log('\n========== [DEBUG] RESPONSE BODY ==========');
-    console.log('[DEBUG] Lookup for username:', username);
-    console.log('[DEBUG] Raw JSON (first 2000 chars):');
-    const jsonStr = JSON.stringify(data, null, 2);
-    console.log(jsonStr.substring(0, 2000));
-    if (jsonStr.length > 2000) {
-      console.log(`... [truncated, total length: ${jsonStr.length}]`);
-    }
-    
-    // Check for base64 patterns
-    console.log('\n[DEBUG] Scanning for base64 patterns...');
-    const base64Pattern = /[A-Za-z0-9+/]{20,}={0,2}/g;
-    const matches = jsonStr.match(base64Pattern);
-    if (matches && matches.length > 0) {
-      console.log(`[DEBUG] Found ${matches.length} potential base64 strings:`);
-      matches.forEach((match, i) => {
-        console.log(`  [${i}] ${match.substring(0, 50)}... (length: ${match.length})`);
-        // Try to decode
-        try {
-          const decoded = atob(match);
-          if (decoded.length > 0 && /[\x20-\x7E]/.test(decoded)) {
-            console.log(`      Decoded: ${decoded.substring(0, 100)}`);
-          }
-        } catch (e) {
-          // Not valid base64
-        }
-      });
-    } else {
-      console.log('[DEBUG] No base64 patterns found');
-    }
-
-    // Log all string values that might contain usernames
-    console.log('\n[DEBUG] Scanning for username-related strings...');
-    const findStrings = (obj: any, path: string = ''): void => {
-      if (typeof obj === 'string') {
-        const lower = obj.toLowerCase();
-        if (lower.includes('xaitax') || lower.includes('screen_name') || lower.includes('username')) {
-          console.log(`[DEBUG] String at ${path}: "${obj}"`);
-        }
-      } else if (typeof obj === 'object' && obj !== null) {
-        Object.entries(obj).forEach(([key, value]) => {
-          const newPath = path ? `${path}.${key}` : key;
-          // Log screen_name fields specifically
-          if (key.toLowerCase().includes('screen') || key.toLowerCase().includes('name') || key.toLowerCase().includes('user')) {
-            console.log(`[DEBUG] Key "${key}" at ${path}:`, value);
-          }
-          findStrings(value, newPath);
-        });
-      }
-    };
-    findStrings(data);
-    
-    console.log('==========================================\n');
-  },
-
-  parseResult: (profile: any, result: LocationEntry | null) => {
-    if (!DEBUG_MODE) return;
-    console.log('\n========== [DEBUG] PARSE RESULT ==========');
-    console.log('[DEBUG] Profile object:', profile);
-    console.log('[DEBUG] Parsed result:', result);
-    if (profile) {
-      console.log('[DEBUG] Profile keys:', Object.keys(profile));
-      console.log('[DEBUG] account_based_in:', profile.account_based_in);
-      console.log('[DEBUG] source:', profile.source);
-      console.log('[DEBUG] location_accurate:', profile.location_accurate);
-    }
-    console.log('==========================================\n');
-  },
-
-  error: (context: string, error: any) => {
-    if (!DEBUG_MODE) return;
-    console.log('\n========== [DEBUG] ERROR ==========');
-    console.log('[DEBUG] Context:', context);
-    console.log('[DEBUG] Error:', error);
-    if (error?.message) console.log('[DEBUG] Message:', error.message);
-    if (error?.stack) console.log('[DEBUG] Stack:', error.stack);
-    console.log('====================================\n');
-  },
-
-  dataPath: (data: any) => {
-    if (!DEBUG_MODE) return;
-    console.log('\n========== [DEBUG] DATA PATH ANALYSIS ==========');
-    console.log('[DEBUG] data:', typeof data, data ? 'exists' : 'null/undefined');
-    console.log('[DEBUG] data.data:', data?.data);
-    console.log('[DEBUG] data.data.user_result_by_screen_name:', data?.data?.user_result_by_screen_name);
-    console.log('[DEBUG] data.data.user_result_by_screen_name.result:', data?.data?.user_result_by_screen_name?.result);
-    console.log('[DEBUG] data.data.user_result_by_screen_name.result.about_profile:', data?.data?.user_result_by_screen_name?.result?.about_profile);
-    
-    // Check for alternative paths
-    if (data?.data) {
-      console.log('[DEBUG] Top-level keys in data.data:', Object.keys(data.data));
-    }
-    if (data?.data?.user_result_by_screen_name?.result) {
-      console.log('[DEBUG] Keys in result:', Object.keys(data.data.user_result_by_screen_name.result));
-    }
-    console.log('=================================================\n');
-  }
-};
-
 // X GraphQL API Configuration
 const API_CONFIG = {
   QUERY_ID: 'XRqGa7EeokUU5kppkh13EA',
@@ -224,26 +87,13 @@ export class XGraphQLAPI {
    */
   private static parseResponse(data: GraphQLResponse, username: string): LocationEntry | null {
     try {
-      // Debug: analyze data path
-      debugLog.dataPath(data);
-      
       const profile = data?.data?.user_result_by_screen_name?.result?.about_profile;
       
       if (!profile) {
-        // Debug: try to find alternative data paths
-        if (DEBUG_MODE) {
-          console.log('[DEBUG] Attempting to find alternative data paths...');
-          const result = data?.data?.user_result_by_screen_name?.result;
-          if (result) {
-            console.log('[DEBUG] Result object exists with keys:', Object.keys(result));
-            console.log('[DEBUG] Full result object:', JSON.stringify(result, null, 2).substring(0, 1000));
-          }
-        }
-        
         return null;
       }
 
-      const entry: LocationEntry = {
+      return {
         location: profile.account_based_in || '',
         device: profile.source || '',
         isAccurate: profile.location_accurate !== false,
@@ -251,12 +101,7 @@ export class XGraphQLAPI {
         fromCloud: false,
         username: username.toLowerCase(),
       };
-      
-      debugLog.parseResult(profile, entry);
-      
-      return entry;
-    } catch (error) {
-      debugLog.error('parseResponse', error);
+    } catch {
       return null;
     }
   }
@@ -339,9 +184,6 @@ export class XGraphQLAPI {
       const url = this.buildUrl(username);
       const headers = this.buildHeaders(session.authToken, session.csrfToken);
 
-      // Debug: log request details
-      debugLog.request(url, headers);
-
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT_MS);
@@ -355,21 +197,8 @@ export class XGraphQLAPI {
 
       clearTimeout(timeoutId);
 
-      // Debug: log response headers
-      debugLog.response(response.status, response.statusText, response.headers);
-
       if (!response.ok) {
         const error = this.handleError(response.status, response);
-        
-        // Debug: try to get error response body
-        if (DEBUG_MODE) {
-          try {
-            const errorText = await response.text();
-            console.log('[DEBUG] Error response body:', errorText.substring(0, 500));
-          } catch (e) {
-            console.log('[DEBUG] Could not read error response body');
-          }
-        }
         
         if (error.code === 'RATE_LIMITED') {
           this.consecutiveFailures++;
@@ -382,18 +211,9 @@ export class XGraphQLAPI {
       this.consecutiveFailures = 0;
 
       const data: GraphQLResponse = await response.json();
-      
-      // Debug: log full response body
-      debugLog.responseBody(data, username);
 
       return this.parseResponse(data, username);
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        debugLog.error('Request timeout', error);
-      } else {
-        debugLog.error('Network error', error);
-      }
-      
+    } catch {
       this.consecutiveFailures++;
       return null;
     }

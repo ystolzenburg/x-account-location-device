@@ -56,6 +56,7 @@ class CloudCacheService {
   private consecutiveFailures: number = 0;
   private backoffUntil: number = 0;
   private initialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     // Don't auto-load in constructor - call loadSettings explicitly
@@ -63,10 +64,28 @@ class CloudCacheService {
 
   /**
    * Load settings from AsyncStorage
+   * Uses a singleton promise to prevent race conditions
    */
   async loadSettings(): Promise<void> {
-    if (this.initialized) return;
+    // Return existing promise if already initializing
+    if (this.initPromise) {
+      return this.initPromise;
+    }
     
+    // Already initialized
+    if (this.initialized) {
+      return Promise.resolve();
+    }
+    
+    // Create and store the initialization promise
+    this.initPromise = this.doLoadSettings();
+    return this.initPromise;
+  }
+
+  /**
+   * Internal initialization logic
+   */
+  private async doLoadSettings(): Promise<void> {
     try {
       const [enabledStr, statsStr] = await Promise.all([
         AsyncStorage.getItem(CLOUD_CONFIG.STORAGE_KEY),
@@ -84,8 +103,9 @@ class CloudCacheService {
       }
 
       this.initialized = true;
-    } catch (error) {
-      // Silent fail
+    } catch {
+      // Silent fail - mark as initialized anyway to prevent retries
+      this.initialized = true;
     }
   }
 

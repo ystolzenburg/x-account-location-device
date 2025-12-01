@@ -3,7 +3,7 @@
  * Manages lookup history with AsyncStorage persistence
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HistoryEntry, LocationEntry, LookupMode } from '../types';
 
@@ -12,6 +12,9 @@ const HISTORY_STORAGE_KEY = 'x_posed_lookup_history';
 
 // Maximum history entries (increased for batch scans)
 const MAX_HISTORY_ENTRIES = 2000;
+
+// Debounce delay for saving to storage
+const SAVE_DEBOUNCE_MS = 500;
 
 interface UseHistoryReturn {
   history: HistoryEntry[];
@@ -23,18 +26,13 @@ interface UseHistoryReturn {
 }
 
 /**
- * History Hook
+ * History Hook with debounced persistence
  */
 export function useHistory(): UseHistoryReturn {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-
-  /**
-   * Load history from storage on mount
-   */
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<HistoryEntry[] | null>(null);
 
   /**
    * Load history from AsyncStorage
@@ -42,7 +40,6 @@ export function useHistory(): UseHistoryReturn {
   const loadHistory = useCallback(async () => {
     try {
       setLoading(true);
-
       const stored = await AsyncStorage.getItem(HISTORY_STORAGE_KEY);
       
       if (stored) {
@@ -51,22 +48,55 @@ export function useHistory(): UseHistoryReturn {
         parsed.sort((a, b) => b.lookupTime - a.lookupTime);
         setHistory(parsed);
       }
-    } catch (error) {
-      // Silent fail
+    } catch {
+      // Silent fail - use empty history
     } finally {
       setLoading(false);
     }
   }, []);
 
   /**
-   * Save history to AsyncStorage
+   * Load history from storage on mount
    */
-  const saveHistory = useCallback(async (entries: HistoryEntry[]) => {
-    try {
-      await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries));
-    } catch (error) {
-      throw error;
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  /**
+   * Cleanup pending save on unmount
+   */
+  useEffect(() => {
+    return () => {
+      // Flush pending save on unmount
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        if (pendingSaveRef.current) {
+          AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(pendingSaveRef.current)).catch(() => {});
+        }
+      }
+    };
+  }, []);
+
+  /**
+   * Save history to AsyncStorage with debouncing
+   */
+  const saveHistory = useCallback((entries: HistoryEntry[]) => {
+    pendingSaveRef.current = entries;
+    
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+    
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        if (pendingSaveRef.current) {
+          await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(pendingSaveRef.current));
+          pendingSaveRef.current = null;
+        }
+      } catch {
+        // Silent fail
+      }
+    }, SAVE_DEBOUNCE_MS);
   }, []);
 
   /**
