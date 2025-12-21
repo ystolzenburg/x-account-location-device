@@ -81,6 +81,39 @@ let rateLimitMonitorInterval = null;
 async function initialize() {
     // Load and apply theme first
     await loadTheme();
+
+    // Keep cloud total updated even if the initial /stats call is slow.
+    // Background writes cached stats to storage (stale-while-revalidate).
+    try {
+        const onChanged = (changes, areaName) => {
+            if (areaName !== 'local') return;
+            const change = changes?.[STORAGE_KEYS.CLOUD_SERVER_STATS];
+            if (!change?.newValue) return;
+
+            const total = change.newValue?.data?.totalEntries;
+            if (typeof total === 'number' && elements.cloudTotalEntries) {
+                elements.cloudTotalEntries.textContent = total.toLocaleString();
+            }
+        };
+
+        browserAPI.storage.onChanged.addListener(onChanged);
+        window.addEventListener('beforeunload', () => {
+            try {
+                browserAPI.storage.onChanged.removeListener(onChanged);
+            } catch {
+                // ignore
+            }
+        });
+
+        // Also show whatever we already have cached immediately (no network wait).
+        const initial = await browserAPI.storage.local.get(STORAGE_KEYS.CLOUD_SERVER_STATS);
+        const initialTotal = initial?.[STORAGE_KEYS.CLOUD_SERVER_STATS]?.data?.totalEntries;
+        if (typeof initialTotal === 'number' && elements.cloudTotalEntries) {
+            elements.cloudTotalEntries.textContent = initialTotal.toLocaleString();
+        }
+    } catch {
+        // ignore
+    }
     
     // Set version
     if (elements.version) {
@@ -569,7 +602,8 @@ async function fetchCloudServerStats() {
         if (response?.success && response.serverStats) {
             if (elements.cloudTotalEntries) {
                 const total = response.serverStats.totalEntries || 0;
-                elements.cloudTotalEntries.textContent = formatNumber(total);
+                // Exact number (no K/M abbreviation)
+                elements.cloudTotalEntries.textContent = Number(total).toLocaleString();
             }
         }
     } catch (error) {
@@ -578,18 +612,6 @@ async function fetchCloudServerStats() {
             elements.cloudTotalEntries.textContent = '-';
         }
     }
-}
-
-/**
- * Format large numbers with K/M suffix
- */
-function formatNumber(num) {
-    if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
 }
 
 /**

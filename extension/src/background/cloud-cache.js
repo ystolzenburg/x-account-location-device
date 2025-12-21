@@ -27,7 +27,11 @@ class CloudCacheClient {
             contributions: 0,
             errors: 0
         };
-        
+
+        // Cached server stats (stale-while-revalidate for fast UI)
+        this.serverStats = null;
+        this.serverStatsFetchedAt = 0;
+
         // Debounced stats saving to prevent excessive storage writes
         this._debouncedSaveStats = debounce(() => this._saveStatsImmediate(), 5000);
     }
@@ -36,19 +40,36 @@ class CloudCacheClient {
      * Initialize the cloud cache client
      */
     async init() {
-        // Load enabled state from storage
+        // Load enabled state + persisted stats from storage
         const result = await browserAPI.storage.local.get([
             STORAGE_KEYS.CLOUD_CACHE_ENABLED,
-            STORAGE_KEYS.CLOUD_STATS
+            STORAGE_KEYS.CLOUD_STATS,
+            STORAGE_KEYS.CLOUD_SERVER_STATS
         ]);
-        
+
         this.enabled = result[STORAGE_KEYS.CLOUD_CACHE_ENABLED] === true;
-        
+
         if (result[STORAGE_KEYS.CLOUD_STATS]) {
             this.stats = { ...this.stats, ...result[STORAGE_KEYS.CLOUD_STATS] };
         }
-        
+
+        // Load cached server stats (for instant display in Options)
+        const storedServerStats = result[STORAGE_KEYS.CLOUD_SERVER_STATS];
+        if (storedServerStats && typeof storedServerStats === 'object') {
+            const { data, fetchedAt } = storedServerStats;
+            if (data && typeof data === 'object') {
+                this.serverStats = data;
+                this.serverStatsFetchedAt = typeof fetchedAt === 'number' ? fetchedAt : 0;
+            }
+        }
+
         console.log(`☁️ Cloud Cache: ${this.enabled ? 'enabled' : 'disabled'}`);
+
+        // Warm cache on startup when cloud cache is enabled.
+        if (this.enabled && this.isConfigured()) {
+            this.refreshServerStats({ timeoutMs: 15000 }).catch(() => {});
+        }
+
         return this.enabled;
     }
 
@@ -61,6 +82,12 @@ class CloudCacheClient {
             [STORAGE_KEYS.CLOUD_CACHE_ENABLED]: enabled
         });
         console.log(`☁️ Cloud Cache: ${enabled ? 'enabled' : 'disabled'}`);
+
+        // Warm the server-stats cache so Options can display instantly.
+        if (enabled && this.isConfigured()) {
+            this.refreshServerStats({ timeoutMs: 15000 }).catch(() => {});
+        }
+
         return enabled;
     }
 
@@ -76,6 +103,36 @@ class CloudCacheClient {
      */
     getStats() {
         return { ...this.stats };
+    }
+
+    /**
+     * Get last known server stats (may be stale)
+     */
+    getCachedServerStats() {
+        return this.serverStats ? { ...this.serverStats } : null;
+    }
+
+    /**
+     * Whether cached server stats are still "fresh".
+     */
+    isServerStatsFresh(maxAgeMs = 5 * 60 * 1000) {
+        if (!this.serverStats || !this.serverStatsFetchedAt) return false;
+        return Date.now() - this.serverStatsFetchedAt < maxAgeMs;
+    }
+
+    async _saveServerStats(data) {
+        try {
+            this.serverStats = data;
+            this.serverStatsFetchedAt = Date.now();
+            await browserAPI.storage.local.set({
+                [STORAGE_KEYS.CLOUD_SERVER_STATS]: {
+                    data: this.serverStats,
+                    fetchedAt: this.serverStatsFetchedAt
+                }
+            });
+        } catch (error) {
+            console.warn('☁️ Failed to save cloud server stats:', error.message);
+        }
     }
 
     /**
@@ -595,15 +652,55 @@ class CloudCacheClient {
 
     /**
      * Fetch server statistics (total entries in cloud cache)
+     *
+     * Stale-while-revalidate behavior:
+     * - returns cached stats immediately if available (even if stale) when allowStale is true
+     * - refreshes from network when force is true or cache is stale
      */
-    async fetchServerStats() {
+    async fetchServerStats({ timeoutMs = 8000, maxAgeMs = 5 * 60 * 1000, allowStale = true, force = false } = {}) {
         if (!this.isConfigured()) {
             return null;
         }
 
+        const cached = this.getCachedServerStats();
+
+        // Fast path: cache is fresh
+        if (!force && this.isServerStatsFresh(maxAgeMs)) {
+            return cached;
+        }
+
+        // If we want instant UI and have something cached, return it while we revalidate
+        if (allowStale && cached && !force) {
+            // Fire-and-forget refresh
+            this.refreshServerStats({ timeoutMs }).catch(() => {});
+            return cached;
+        }
+
+        // Otherwise, attempt a network fetch and fall back to cache on failure
+        const fresh = await this._fetchServerStatsFromNetwork(timeoutMs);
+        if (fresh) {
+            await this._saveServerStats(fresh);
+            return fresh;
+        }
+
+        return cached;
+    }
+
+    /**
+     * Force-refresh server stats from network.
+     */
+    async refreshServerStats({ timeoutMs = 8000 } = {}) {
+        const fresh = await this._fetchServerStatsFromNetwork(timeoutMs);
+        if (fresh) {
+            await this._saveServerStats(fresh);
+        }
+        return this.getCachedServerStats();
+    }
+
+    async _fetchServerStatsFromNetwork(timeoutMs) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
             const response = await fetch(`${this.apiUrl}/stats`, {
                 method: 'GET',

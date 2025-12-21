@@ -2,6 +2,23 @@
 
 All notable changes to X-Posed will be documented in this file.
 
+## [2.3.1] - 2025-12-21
+
+### 🐛 Bug Fixes
+- Fixed intermittent Firefox initialization crash when `document.head` is temporarily unavailable at `document_start`
+
+### 🎨 UI/UX
+- **New Hovercard (on badge hover)** with rich account metadata:
+  - Location, device, VPN/proxy signal
+  - Verification signals (Blue / Verified / ID / Protected)
+  - Account created date, “Verified since”, handle-change count
+  - Stable X internal account identifier labeled as **User ID** (formerly `rest_id`)
+  - Affiliation label (if present)
+- Info badge actions are now always visible (info hint + evidence camera)
+- Hovercard cleaned up by removing non-actionable rows (avatar shape + learn-more link)
+
+---
+
 ## [2.2.0] - 2024-11-30
 
 ### ✨ New Features

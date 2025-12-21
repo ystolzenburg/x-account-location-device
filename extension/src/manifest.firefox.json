@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X-Posed: Account Location & Device Info",
-  "version": "2.2.0",
+  "version": "2.3.1",
   "description": "See where X users are located and what devices they use. Country flags & device icons next to every username. Optional geo-blocking.",
   
   "icons": {
@@ -26,7 +26,8 @@
 
   "host_permissions": [
     "*://*.x.com/*",
-    "*://*.twitter.com/*"
+    "*://*.twitter.com/*",
+    "https://x-posed-cache.xaitax.workers.dev/*"
   ],
 
   "background": {

@@ -8,6 +8,7 @@ import { SELECTORS, CSS_CLASSES, TIMING } from '../shared/constants.js';
 import { findInsertionPoint, getFlagEmoji, getDeviceEmoji, debounce, throttle } from '../shared/utils.js';
 import { showModal } from './modal.js';
 import { captureEvidence } from './evidence-capture.js';
+import { hovercard } from './hovercard.js';
 
 // ============================================
 // STATE (module-local)
@@ -415,7 +416,7 @@ export function findUserCellInsertionPoint(userCell, screenName) {
 /**
  * Create info badge for a user
  */
-export function createBadge(element, screenName, info, isUserCell, settings, debug) {
+export function createBadge(element, screenName, info, isUserCell, settings, debug, csrfToken = null) {
     if (element.querySelector(`.${CSS_CLASSES.INFO_BADGE}`)) {
         return;
     }
@@ -472,6 +473,13 @@ export function createBadge(element, screenName, info, isUserCell, settings, deb
 
     if (!hasContent) return;
 
+    // Hover hint icon (hidden until badge hover) – indicates there’s a hovercard.
+    const hint = document.createElement('span');
+    hint.className = 'x-hover-hint';
+    hint.title = 'Hover for details';
+    hint.textContent = 'i';
+    badge.appendChild(hint);
+
     // Capture button
     const captureBtn = document.createElement('button');
     captureBtn.className = 'x-capture-btn';
@@ -518,6 +526,9 @@ export function createBadge(element, screenName, info, isUserCell, settings, deb
     } else {
         if (debug) debug(`No insertion point found for @${screenName}${isUserCell ? ' (UserCell)' : ''}`);
     }
+
+    // Attach hovercard; we fetch rich metadata only on hover
+    hovercard.attach(badge, { screenName, info, csrfToken });
 }
 
 // ============================================
@@ -813,16 +824,22 @@ let stylesInjected = false;
 
 /**
  * Inject CSS styles
+ *
+ * Note: content scripts can run at `document_start` and Firefox can briefly have
+ * `document.head === null`. We fall back to `document.documentElement` to avoid
+ * aborting initialization.
  */
 export function injectStyles() {
     if (stylesInjected) return;
-    
+
     const styleUrl = browserAPI.runtime.getURL('styles/content.css');
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = styleUrl;
-    document.head.appendChild(link);
-    
+
+    const mount = document.head || document.documentElement;
+    mount.appendChild(link);
+
     stylesInjected = true;
 }
 

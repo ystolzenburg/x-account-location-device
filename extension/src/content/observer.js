@@ -418,7 +418,7 @@ export async function processElement(element, {
             
             if (info.location || info.device) {
                 try {
-                    createBadge(element, screenName, info, isUserCell, settings, debug);
+                    createBadge(element, screenName, info, isUserCell, settings, debug, csrfToken);
                 } catch (badgeError) {
                     if (debug) debug(`Badge creation error for @${screenName}: ${badgeError.message}`);
                 }
@@ -472,7 +472,7 @@ export async function processElement(element, {
                     }
                 }
                 if (info.location || info.device) {
-                    createBadge(element, screenName, info, isUserCell, settings, debug);
+                    createBadge(element, screenName, info, isUserCell, settings, debug, csrfToken);
                 }
             }
         }
@@ -611,7 +611,7 @@ export async function processElement(element, {
 
         if (info.location || info.device) {
             try {
-                createBadge(element, screenName, info, isUserCell, settings, debug);
+                createBadge(element, screenName, info, isUserCell, settings, debug, csrfToken);
             } catch (badgeError) {
                 if (debug) debug(`Badge creation error for @${screenName}: ${badgeError.message}`);
             }

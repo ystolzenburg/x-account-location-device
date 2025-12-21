@@ -1,1 +1,5 @@
 package-lock.json
+
+# Local secrets / developer-specific configs
+cloud-server/.dev.vars
+dashboard/config.js

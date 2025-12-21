@@ -391,12 +391,82 @@ export class XAPIClient {
      */
     parseResponse(data) {
         try {
-            const profile = data?.data?.user_result_by_screen_name?.result?.about_profile;
-            
+            const user = data?.data?.user_result_by_screen_name?.result;
+            const profile = user?.about_profile;
+
+            // Core values used by the extension (existing behavior)
+            const location = profile?.account_based_in || null;
+            const device = profile?.source || null;
+            const locationAccurate = profile?.location_accurate !== false;
+
+            // Rich metadata (used for hovercard UI). All fields are optional.
+            const createdAt = user?.core?.created_at || null;
+            const name = user?.core?.name || null;
+            const avatarUrl = user?.avatar?.image_url || null;
+            const restId = user?.rest_id || null;
+
+            const blueVerified = user?.is_blue_verified === true;
+            const verified = user?.verification?.verified === true;
+            const identityVerified = user?.verification_info?.is_identity_verified === true;
+            const protectedAccount = user?.privacy?.protected === true;
+
+            // Verification metadata (optional)
+            let verifiedSinceMsec = null;
+            const rawVerifiedSince = user?.verification_info?.reason?.verified_since_msec;
+            if (rawVerifiedSince !== null && rawVerifiedSince !== undefined) {
+                const parsed = Number.parseInt(String(rawVerifiedSince), 10);
+                if (!Number.isNaN(parsed) && parsed > 0) {
+                    verifiedSinceMsec = parsed;
+                }
+            }
+
+            const profileImageShape = user?.profile_image_shape || null;
+
+            // About-profile metadata
+            const createdCountryAccurate = profile?.created_country_accurate === true;
+            const learnMoreUrl = profile?.learn_more_url || null;
+            const affiliateUsername = profile?.affiliate_username || null;
+
+            // Username changes is usually a string count (e.g., "0")
+            let usernameChanges = null;
+            const rawChanges = profile?.username_changes?.count;
+            if (rawChanges !== null && rawChanges !== undefined) {
+                const parsed = Number.parseInt(String(rawChanges), 10);
+                if (!Number.isNaN(parsed)) {
+                    usernameChanges = parsed;
+                }
+            }
+
+            // Prefer affiliates_highlighted_label, fallback to identity_profile_labels_highlighted_label
+            const label = user?.affiliates_highlighted_label?.label || user?.identity_profile_labels_highlighted_label?.label || null;
+            const affiliate = label?.description ? {
+                name: label.description,
+                badgeUrl: label?.badge?.url || null,
+                url: label?.url?.url || null,
+                type: label?.userLabelType || label?.userLabelDisplayType || null
+            } : null;
+
             return {
-                location: profile?.account_based_in || null,
-                device: profile?.source || null,
-                locationAccurate: profile?.location_accurate !== false
+                location,
+                device,
+                locationAccurate,
+                meta: {
+                    name,
+                    avatarUrl,
+                    createdAt,
+                    restId,
+                    profileImageShape,
+                    blueVerified,
+                    verified,
+                    identityVerified,
+                    verifiedSinceMsec,
+                    protected: protectedAccount,
+                    usernameChanges,
+                    createdCountryAccurate,
+                    learnMoreUrl,
+                    affiliateUsername,
+                    affiliate
+                }
             };
         } catch (error) {
             throw new APIError(

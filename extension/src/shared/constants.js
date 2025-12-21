@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
     THEME: 'x_theme_preference',
     CLOUD_CACHE_ENABLED: 'x_cloud_cache_enabled',
     CLOUD_STATS: 'x_cloud_stats',
+    CLOUD_SERVER_STATS: 'x_cloud_server_stats',
     LAST_VERSION: 'x_last_version',
     WHATS_NEW_SEEN: 'x_whats_new_seen'
 };
@@ -116,6 +117,7 @@ export const CSS_CLASSES = {
 export const MESSAGE_TYPES = {
     // Content script to background
     FETCH_USER_INFO: 'FETCH_USER_INFO',
+    FETCH_HOVERCARD_INFO: 'FETCH_HOVERCARD_INFO',
     CAPTURE_HEADERS: 'CAPTURE_HEADERS',
     GET_CACHE: 'GET_CACHE',
     SET_CACHE: 'SET_CACHE',

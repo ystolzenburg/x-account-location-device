@@ -68,6 +68,9 @@ async function handleMessage(message, _sender) {
         switch (type) {
             case MESSAGE_TYPES.FETCH_USER_INFO:
                 return await handleFetchUserInfo(payload);
+
+            case MESSAGE_TYPES.FETCH_HOVERCARD_INFO:
+                return await handleFetchHovercardInfo(payload);
             
             case MESSAGE_TYPES.CAPTURE_HEADERS:
                 return await handleCaptureHeaders(payload);
@@ -262,6 +265,34 @@ async function handleFetchUserInfo({ screenName, csrfToken }) {
 }
 
 /**
+ * Fetch hovercard info handler
+ *
+ * Intentionally forces a live API call so we only pay rate limit cost on user interaction.
+ */
+async function handleFetchHovercardInfo({ screenName, csrfToken }) {
+    try {
+        const data = await apiClient.fetchUserInfo(screenName, csrfToken);
+
+        // Persist enriched response locally to speed up future hovers
+        userCache.set(screenName, data);
+
+        // Contribute (location/device only) to cloud cache if enabled
+        if (cloudCache.isEnabled() && cloudCache.isConfigured()) {
+            cloudCache.contribute(screenName, data);
+        }
+
+        return { success: true, data, source: 'api' };
+    } catch (error) {
+        return {
+            success: false,
+            error: error.message,
+            code: error.code || API_ERROR_CODES.UNKNOWN,
+            retryAfter: error.retryAfter || null
+        };
+    }
+}
+
+/**
  * Capture headers handler
  */
 async function handleCaptureHeaders({ headers }) {
@@ -299,9 +330,23 @@ function handleGetCache({ screenName }) {
 /**
  * Set cache handler
  */
-function handleSetCache({ screenName, data }) {
-    userCache.set(screenName, data);
-    return { success: true };
+function handleSetCache({ action, screenName, data }) {
+    if (action === 'clear') {
+        void userCache.clear();
+        return { success: true, cleared: true };
+    }
+
+    if (action === 'delete' && screenName) {
+        userCache.delete(screenName);
+        return { success: true, deleted: true };
+    }
+
+    if (screenName && data) {
+        userCache.set(screenName, data);
+        return { success: true };
+    }
+
+    return { success: false, error: 'Invalid cache operation' };
 }
 
 /**
@@ -571,13 +616,36 @@ function handleGetCloudStats() {
 
 /**
  * Get cloud server stats handler (total entries in cloud cache)
+ *
+ * Optimized for UX:
+ * - returns cached stats immediately when available
+ * - triggers a background refresh (stale-while-revalidate)
  */
 async function handleGetCloudServerStats() {
     try {
-        const serverStats = await cloudCache.fetchServerStats();
+        const cached = cloudCache.getCachedServerStats?.();
+
+        // If we have cached stats, return instantly and refresh in the background
+        if (cached) {
+            cloudCache.refreshServerStats?.({ timeoutMs: 15000 }).catch(() => {});
+            return {
+                success: true,
+                serverStats: cached,
+                cached: true
+            };
+        }
+
+        // First-time fetch: wait for a (longer) network request
+        const serverStats = await cloudCache.fetchServerStats({
+            timeoutMs: 15000,
+            allowStale: false,
+            force: true
+        });
+
         return {
             success: true,
-            serverStats
+            serverStats,
+            cached: false
         };
     } catch (error) {
         return {
