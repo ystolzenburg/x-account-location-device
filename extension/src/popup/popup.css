@@ -398,3 +398,15 @@ body {
 .popup-container {
     animation: fadeIn 0.2s ease-out;
 }
+
+/* Support Button */
+.support-btn {
+    background: rgba(255, 94, 91, 0.1);
+    color: #ff5e5b;
+    border: 1px solid rgba(255, 94, 91, 0.3);
+}
+
+.support-btn:hover {
+    background: rgba(255, 94, 91, 0.2);
+    border-color: #ff5e5b;
+}
