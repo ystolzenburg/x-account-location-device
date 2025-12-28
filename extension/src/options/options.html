@@ -16,28 +16,28 @@
                 </svg>
             </button>
             <div class="whats-new-content">
-                <h2>🎉 What's New in X-Posed v2.3!</h2>
-                <p class="whats-new-subtitle">Cleaner hover details + always-visible actions</p>
+                <h2>🎉 What's New in X-Posed v2.4!</h2>
+                <p class="whats-new-subtitle">Tag-based blocking is here!</p>
                 
                 <div class="whats-new-features">
                     <div class="whats-new-feature">
-                        <span class="feature-icon">ℹ️</span>
+                        <span class="feature-icon">🏷️</span>
                         <div class="feature-info">
-                            <strong>Badge actions always visible</strong>
-                            <span>Info hint + evidence camera are now always shown next to the flag/device badge</span>
+                            <strong>Tag-Based Blocking</strong>
+                            <span>Block users by emojis, symbols, or text in their display names.</span>
                         </div>
                     </div>
                     <div class="whats-new-feature">
-                        <span class="feature-icon">🪪</span>
+                        <span class="feature-icon">💾</span>
                         <div class="feature-info">
-                            <strong>Clearer account ID</strong>
-                            <span>Hovercard now labels X's internal stable ID as “User ID”</span>
+                            <strong>Export/Import Tags</strong>
+                            <span>Blocked tags are now included in backup files for easy restore</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="whats-new-cta">
-                    <p>Tip: hover the badge to see the richer account details.</p>
+                    <p>Tip: Click "Tags" in the Blocking section below to add your first blocked tags!</p>
                 </div>
             </div>
         </div>
@@ -167,7 +167,7 @@
                     <svg viewBox="0 0 24 24" width="20" height="20">
                         <path fill="currentColor" d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4-2.55 7.7-6 8.83-3.45-1.13-6-4.82-6-8.83V6.31l6-2.12 6 2.12v4.78z"/>
                     </svg>
-                    Blocked Locations
+                    Blocking
                 </h2>
 
                 <p class="section-description">
@@ -208,6 +208,10 @@
                     <button class="blocked-tab" id="tab-regions">
                         🗺️ Regions
                         <span class="blocked-count" id="blocked-regions-count">0</span>
+                    </button>
+                    <button class="blocked-tab" id="tab-tags">
+                        🏷️ Tags
+                        <span class="blocked-count" id="blocked-tags-count">0</span>
                     </button>
                 </div>
 
@@ -255,6 +259,32 @@
                     <div class="blocked-actions">
                         <button class="btn btn-secondary btn-small" id="btn-clear-blocked-regions">
                             Clear All Regions
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tags Panel -->
+                <div class="blocked-panel" id="panel-tags" style="display: none;">
+                    <p class="section-hint">
+                        Block users based on emojis, flags, or tags in their display names (e.g., 🏳️‍⚧️, 🇷🇺, [BOT]).
+                    </p>
+
+                    <!-- Currently blocked tags -->
+                    <div class="blocked-list" id="blocked-tags-list">
+                        <p class="empty-state">No tags blocked</p>
+                    </div>
+
+                    <!-- Tag input -->
+                    <div class="country-selector">
+                        <div class="tag-input-row">
+                            <input type="text" class="country-search" id="tag-input" placeholder="Enter emoji or tag (e.g., 🇷🇺 or [BOT])...">
+                            <button class="btn btn-primary btn-small" id="btn-add-tag">+ Add</button>
+                        </div>
+                    </div>
+
+                    <div class="blocked-actions">
+                        <button class="btn btn-secondary btn-small" id="btn-clear-blocked-tags">
+                            Clear All Tags
                         </button>
                     </div>
                 </div>

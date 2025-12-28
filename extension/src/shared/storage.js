@@ -319,6 +319,126 @@ class BlockedRegionsStorage {
 }
 
 /**
+ * Blocked tags storage (for emoji/symbol-based blocking)
+ * Tags are stored as-is (emoji characters, symbols, or short text patterns)
+ */
+class BlockedTagsStorage {
+    constructor() {
+        this.tags = new Set();
+        this.loaded = false;
+    }
+
+    async load() {
+        try {
+            const result = await browserAPI.storage.local.get(STORAGE_KEYS.BLOCKED_TAGS);
+            const stored = result[STORAGE_KEYS.BLOCKED_TAGS];
+            
+            if (Array.isArray(stored)) {
+                this.tags = new Set(stored);
+                console.log(`🏷️ Loaded ${this.tags.size} blocked tags`);
+            }
+            
+            this.loaded = true;
+        } catch (error) {
+            console.error('Failed to load blocked tags:', error);
+            this.loaded = true;
+        }
+    }
+
+    async save() {
+        try {
+            const array = Array.from(this.tags);
+            await browserAPI.storage.local.set({
+                [STORAGE_KEYS.BLOCKED_TAGS]: array
+            });
+            console.log(`💾 Saved ${array.length} blocked tags`);
+        } catch (error) {
+            console.error('Failed to save blocked tags:', error);
+        }
+    }
+
+    /**
+     * Check if a tag is blocked
+     * @param {string} tag - The tag to check
+     * @returns {boolean} - True if blocked
+     */
+    isBlocked(tag) {
+        if (!tag) return false;
+        return this.tags.has(tag);
+    }
+
+    /**
+     * Check if any of the given tags are blocked
+     * @param {string[]} tagsToCheck - Array of tags to check
+     * @returns {string|null} - The first blocked tag found, or null
+     */
+    findBlockedTag(tagsToCheck) {
+        if (!tagsToCheck || !Array.isArray(tagsToCheck)) return null;
+        for (const tag of tagsToCheck) {
+            if (this.tags.has(tag)) {
+                return tag;
+            }
+        }
+        return null;
+    }
+
+    add(tag) {
+        if (!tag || typeof tag !== 'string') return false;
+        const trimmed = tag.trim();
+        if (!trimmed) return false;
+        
+        if (!this.tags.has(trimmed)) {
+            this.tags.add(trimmed);
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    remove(tag) {
+        if (!tag) return false;
+        const trimmed = tag.trim();
+        if (this.tags.has(trimmed)) {
+            this.tags.delete(trimmed);
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    toggle(tag) {
+        if (!tag) return false;
+        const trimmed = tag.trim();
+        if (!trimmed) return false;
+        
+        if (this.tags.has(trimmed)) {
+            this.tags.delete(trimmed);
+        } else {
+            this.tags.add(trimmed);
+        }
+        this.save();
+        return this.tags.has(trimmed);
+    }
+
+    clear() {
+        this.tags.clear();
+        return this.save();
+    }
+
+    get size() {
+        return this.tags.size;
+    }
+
+    getAll() {
+        return Array.from(this.tags);
+    }
+
+    has(tag) {
+        return this.isBlocked(tag);
+    }
+}
+
+/**
  * Settings storage
  */
 class SettingsStorage {
@@ -452,11 +572,12 @@ class HeadersStorage {
 export const userCache = new UserCacheStorage();
 export const blockedCountries = new BlockedCountriesStorage();
 export const blockedRegions = new BlockedRegionsStorage();
+export const blockedTags = new BlockedTagsStorage();
 export const settings = new SettingsStorage();
 export const headersStorage = new HeadersStorage();
 
 // Export classes for testing
-export { LRUCache, UserCacheStorage, BlockedCountriesStorage, BlockedRegionsStorage, SettingsStorage, HeadersStorage };
+export { LRUCache, UserCacheStorage, BlockedCountriesStorage, BlockedRegionsStorage, BlockedTagsStorage, SettingsStorage, HeadersStorage };
 
 /**
  * Initialize all storage modules
@@ -466,6 +587,7 @@ export async function initializeStorage() {
         userCache.load(),
         blockedCountries.load(),
         blockedRegions.load(),
+        blockedTags.load(),
         settings.load(),
         headersStorage.load()
     ]);

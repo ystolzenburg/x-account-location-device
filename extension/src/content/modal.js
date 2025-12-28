@@ -5,11 +5,12 @@
  */
 
 import { COUNTRY_LIST, REGION_LIST, CSS_CLASSES, TIMING } from '../shared/constants.js';
-import { getFlagEmoji, formatCountryName, createElement, debounce } from '../shared/utils.js';
+import { getFlagEmoji, formatCountryName, createElement, debounce, extractTagsFromText, COMMON_PROFILE_TAGS } from '../shared/utils.js';
 
 // Track blocked sets globally for proper syncing
 let localBlockedCountries = null;
 let localBlockedRegions = null;
+let localBlockedTags = null;
 
 let currentModal = null;
 
@@ -22,14 +23,20 @@ let cachedRegionFilter = '';
 // Current tab state
 let activeTab = 'countries';
 
+// Track custom tags added by user
+let cachedFilteredTags = null;
+let cachedTagFilter = '';
+
 /**
  * Show the blocker modal
  * @param {Set} blockedCountries - Set of currently blocked countries
  * @param {Set} blockedRegions - Set of currently blocked regions
  * @param {Function} onCountryAction - Callback for country actions
  * @param {Function} onRegionAction - Callback for region actions
+ * @param {Set} blockedTags - Set of currently blocked tags (optional)
+ * @param {Function} onTagAction - Callback for tag actions (optional)
  */
-export function showModal(blockedCountries, blockedRegions, onCountryAction, onRegionAction) {
+export function showModal(blockedCountries, blockedRegions, onCountryAction, onRegionAction, blockedTags = null, onTagAction = null) {
     // Remove existing modal if present
     if (currentModal) {
         currentModal.remove();
@@ -39,6 +46,7 @@ export function showModal(blockedCountries, blockedRegions, onCountryAction, onR
     // Store references for syncing
     localBlockedCountries = blockedCountries;
     localBlockedRegions = blockedRegions;
+    localBlockedTags = blockedTags || new Set();
 
     // Reset active tab
     activeTab = 'countries';
@@ -58,20 +66,26 @@ export function showModal(blockedCountries, blockedRegions, onCountryAction, onR
     });
 
     // Create tab bar
-    const { tabBar, switchTab } = createTabBar();
+    const { tabBar, switchTab, updateTabCounts } = createTabBar();
+    
+    // Initial tab counts
+    updateTabCounts(blockedCountries.size, blockedRegions.size, localBlockedTags.size);
 
-    // Create bodies for both tabs
+    // Create bodies for all tabs
     const { body: countryBody, renderCountries, searchInput: countrySearch } = createCountryBody(blockedCountries, onCountryAction);
     const { body: regionBody, renderRegions, searchInput: regionSearch } = createRegionBody(blockedRegions, onRegionAction);
+    const { body: tagBody, renderTags, searchInput: tagSearch } = createTagBody(localBlockedTags, onTagAction);
 
     // Tab content container
     const tabContent = createElement('div', { className: 'x-blocker-tab-content' });
     tabContent.appendChild(countryBody);
     tabContent.appendChild(regionBody);
+    tabContent.appendChild(tagBody);
 
     // Initially show countries tab
     countryBody.style.display = 'block';
     regionBody.style.display = 'none';
+    tagBody.style.display = 'none';
 
     // Tab switching logic
     const handleTabSwitch = tab => {
@@ -81,28 +95,40 @@ export function showModal(blockedCountries, blockedRegions, onCountryAction, onR
         if (tab === 'countries') {
             countryBody.style.display = 'block';
             regionBody.style.display = 'none';
+            tagBody.style.display = 'none';
             updateStats(blockedCountries.size, 'countries');
             setTimeout(() => countrySearch.focus(), 50);
-        } else {
+        } else if (tab === 'regions') {
             countryBody.style.display = 'none';
             regionBody.style.display = 'block';
+            tagBody.style.display = 'none';
             updateStats(blockedRegions.size, 'regions');
             setTimeout(() => regionSearch.focus(), 50);
+        } else if (tab === 'tags') {
+            countryBody.style.display = 'none';
+            regionBody.style.display = 'none';
+            tagBody.style.display = 'block';
+            updateStats(localBlockedTags.size, 'tags');
+            setTimeout(() => tagSearch.focus(), 50);
         }
     };
 
     // Wire up tab click handlers
     tabBar.querySelector('[data-tab="countries"]').addEventListener('click', () => handleTabSwitch('countries'));
     tabBar.querySelector('[data-tab="regions"]').addEventListener('click', () => handleTabSwitch('regions'));
+    tabBar.querySelector('[data-tab="tags"]').addEventListener('click', () => handleTabSwitch('tags'));
 
     // Create footer
     const footer = createFooter(
         blockedCountries, 
         blockedRegions, 
+        localBlockedTags,
         onCountryAction, 
         onRegionAction,
+        onTagAction,
         renderCountries, 
         renderRegions,
+        renderTags,
         () => {
             overlay.remove();
             currentModal = null;
@@ -149,6 +175,7 @@ export function showModal(blockedCountries, blockedRegions, onCountryAction, onR
     // Initial render
     renderCountries();
     renderRegions();
+    renderTags();
 }
 
 /**
@@ -175,7 +202,7 @@ function createHeader(onClose) {
     titleSvg.appendChild(titleG);
     
     title.appendChild(titleSvg);
-    title.appendChild(document.createTextNode('Block Locations'));
+    title.appendChild(document.createTextNode('Blocking'));
 
     // Create close button
     const closeBtn = createElement('button', {
@@ -205,32 +232,68 @@ function createHeader(onClose) {
 }
 
 /**
- * Create tab bar for switching between countries and regions
+ * Create tab bar for switching between countries, regions, and tags
  */
 function createTabBar() {
     const tabBar = createElement('div', { className: 'x-blocker-tabs' });
 
     const countriesTab = createElement('button', {
         className: 'x-blocker-tab active',
-        textContent: '🌍 Countries',
         'data-tab': 'countries'
     });
+    countriesTab.appendChild(document.createTextNode('🌍 Countries '));
+    const countriesCount = createElement('span', { 
+        className: 'x-blocker-tab-count', 
+        id: 'modal-countries-count',
+        textContent: '0'
+    });
+    countriesTab.appendChild(countriesCount);
 
     const regionsTab = createElement('button', {
         className: 'x-blocker-tab',
-        textContent: '🗺️ Regions',
         'data-tab': 'regions'
     });
+    regionsTab.appendChild(document.createTextNode('🗺️ Regions '));
+    const regionsCount = createElement('span', { 
+        className: 'x-blocker-tab-count', 
+        id: 'modal-regions-count',
+        textContent: '0'
+    });
+    regionsTab.appendChild(regionsCount);
+
+    const tagsTab = createElement('button', {
+        className: 'x-blocker-tab',
+        'data-tab': 'tags'
+    });
+    tagsTab.appendChild(document.createTextNode('🏷️ Tags '));
+    const tagsCount = createElement('span', { 
+        className: 'x-blocker-tab-count', 
+        id: 'modal-tags-count',
+        textContent: '0'
+    });
+    tagsTab.appendChild(tagsCount);
 
     tabBar.appendChild(countriesTab);
     tabBar.appendChild(regionsTab);
+    tabBar.appendChild(tagsTab);
+
+    // Update count function
+    const updateTabCounts = (countries, regions, tags) => {
+        countriesCount.textContent = countries;
+        countriesCount.style.display = countries > 0 ? 'inline-flex' : 'none';
+        regionsCount.textContent = regions;
+        regionsCount.style.display = regions > 0 ? 'inline-flex' : 'none';
+        tagsCount.textContent = tags;
+        tagsCount.style.display = tags > 0 ? 'inline-flex' : 'none';
+    };
 
     const switchTab = tab => {
         countriesTab.classList.toggle('active', tab === 'countries');
         regionsTab.classList.toggle('active', tab === 'regions');
+        tagsTab.classList.toggle('active', tab === 'tags');
     };
 
-    return { tabBar, switchTab };
+    return { tabBar, switchTab, updateTabCounts };
 }
 
 /**
@@ -370,6 +433,239 @@ function createRegionBody(blockedRegions, onAction) {
 }
 
 /**
+ * Create tag body with search, common tags, and custom tag input
+ */
+function createTagBody(blockedTags, onAction) {
+    const body = createElement('div', { className: 'x-blocker-body x-blocker-tab-panel', 'data-panel': 'tags' });
+
+    const info = createElement('div', {
+        className: 'x-blocker-info',
+        textContent: 'Block users based on emojis, flags, or tags in their display names. Click to toggle blocking.'
+    });
+
+    // Custom tag input section
+    const inputSection = createElement('div', { className: 'x-blocker-tag-input-section' });
+    
+    const tagInput = createElement('input', {
+        type: 'text',
+        className: 'x-blocker-search x-blocker-tag-input',
+        placeholder: 'Enter emoji or tag (e.g., 🇷🇺 or [BOT])...'
+    });
+
+    const addBtn = createElement('button', {
+        className: 'x-blocker-btn x-blocker-btn-add',
+        textContent: '+ Add'
+    });
+
+    inputSection.appendChild(tagInput);
+    inputSection.appendChild(addBtn);
+
+    // Search for filtering existing tags
+    const search = createElement('input', {
+        type: 'text',
+        className: 'x-blocker-search',
+        placeholder: 'Search tags...'
+    });
+
+    // Common tags section
+    const commonSection = createElement('div', { className: 'x-blocker-common-tags-section' });
+    const commonLabel = createElement('div', { 
+        className: 'x-blocker-section-label',
+        textContent: 'Common Tags (click to block)'
+    });
+    const commonTagsContainer = createElement('div', { className: 'x-blocker-common-tags' });
+    commonSection.appendChild(commonLabel);
+    commonSection.appendChild(commonTagsContainer);
+
+    // Blocked tags section
+    const blockedSection = createElement('div', { className: 'x-blocker-blocked-tags-section' });
+    const blockedLabel = createElement('div', { 
+        className: 'x-blocker-section-label',
+        textContent: 'Blocked Tags'
+    });
+    const tagsContainer = createElement('div', { className: 'x-blocker-tags-list' });
+    blockedSection.appendChild(blockedLabel);
+    blockedSection.appendChild(tagsContainer);
+
+    body.appendChild(info);
+    body.appendChild(inputSection);
+    body.appendChild(search);
+    body.appendChild(blockedSection);
+
+    let currentFilter = '';
+
+    // Render common tags
+    const renderCommonTags = () => {
+        commonTagsContainer.replaceChildren();
+        const fragment = document.createDocumentFragment();
+
+        for (const tag of COMMON_PROFILE_TAGS) {
+            const isBlocked = blockedTags && blockedTags.has(tag);
+            const tagEl = createElement('span', {
+                className: `x-blocker-common-tag${isBlocked ? ' blocked' : ''}`,
+                textContent: tag,
+                title: isBlocked ? 'Click to unblock' : 'Click to block'
+            });
+
+            tagEl.addEventListener('click', async () => {
+                if (onAction) {
+                    const response = await onAction('toggle', tag);
+                    if (response?.success && response.data) {
+                        localBlockedTags.clear();
+                        for (const t of response.data) {
+                            localBlockedTags.add(t);
+                        }
+                        renderCommonTags();
+                        renderTags();
+                        updateStats(localBlockedTags.size, 'tags');
+                    }
+                }
+            });
+
+            fragment.appendChild(tagEl);
+        }
+
+        commonTagsContainer.appendChild(fragment);
+    };
+
+    // Render blocked tags list
+    const renderTags = (filter = currentFilter) => {
+        currentFilter = filter;
+        tagsContainer.replaceChildren();
+
+        if (!blockedTags || blockedTags.size === 0) {
+            const emptyMsg = createElement('div', {
+                className: 'x-blocker-empty',
+                textContent: 'No tags blocked yet. Add tags above or click common tags.'
+            });
+            tagsContainer.appendChild(emptyMsg);
+            return;
+        }
+
+        const filterLower = filter.toLowerCase();
+        const allTags = Array.from(blockedTags);
+        
+        let filteredTags;
+        if (cachedTagFilter === filterLower && cachedFilteredTags) {
+            filteredTags = cachedFilteredTags;
+        } else {
+            filteredTags = filterLower 
+                ? allTags.filter(tag => tag.toLowerCase().includes(filterLower))
+                : allTags;
+            cachedTagFilter = filterLower;
+            cachedFilteredTags = filteredTags;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        for (const tag of filteredTags) {
+            const item = createTagItem(tag, blockedTags, onAction, () => {
+                renderCommonTags();
+                renderTags();
+            });
+            fragment.appendChild(item);
+        }
+
+        tagsContainer.appendChild(fragment);
+    };
+
+    // Add tag handler
+    const addTag = async () => {
+        const tag = tagInput.value.trim();
+        if (!tag) return;
+
+        if (onAction) {
+            const response = await onAction('add', tag);
+            if (response?.success && response.data) {
+                localBlockedTags.clear();
+                for (const t of response.data) {
+                    localBlockedTags.add(t);
+                }
+                tagInput.value = '';
+                // Invalidate cache to force re-render
+                cachedFilteredTags = null;
+                cachedTagFilter = '';
+                renderCommonTags();
+                renderTags();
+                updateStats(localBlockedTags.size, 'tags');
+            }
+        }
+    };
+
+    addBtn.addEventListener('click', addTag);
+    tagInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addTag();
+        }
+    });
+
+    // Search functionality with debouncing
+    const debouncedRender = debounce(value => {
+        renderTags(value);
+    }, TIMING.SEARCH_DEBOUNCE_MS);
+    
+    search.addEventListener('input', e => {
+        debouncedRender(e.target.value);
+    });
+
+    // Combined render function
+    const renderAll = () => {
+        renderCommonTags();
+        renderTags();
+    };
+
+    return { body, renderTags: renderAll, searchInput: tagInput };
+}
+
+/**
+ * Create a single tag item for the blocked tags list
+ */
+function createTagItem(tag, blockedTags, onAction, onUpdate) {
+    const item = createElement('div', { className: 'x-blocker-tag-item' });
+
+    const tagText = createElement('span', {
+        className: 'x-blocker-tag-text',
+        textContent: tag
+    });
+
+    const removeBtn = createElement('button', {
+        className: 'x-blocker-tag-remove',
+        textContent: '×',
+        title: 'Remove tag'
+    });
+
+    item.appendChild(tagText);
+    item.appendChild(removeBtn);
+
+    removeBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (onAction) {
+            const response = await onAction('remove', tag);
+            if (response?.success && response.data) {
+                localBlockedTags.clear();
+                for (const t of response.data) {
+                    localBlockedTags.add(t);
+                }
+                // Invalidate cache to force re-render
+                cachedFilteredTags = null;
+                cachedTagFilter = '';
+                updateStats(localBlockedTags.size, 'tags');
+                // Update tab count by directly accessing the DOM element
+                const tagsCountEl = document.getElementById('modal-tags-count');
+                if (tagsCountEl) {
+                    tagsCountEl.textContent = localBlockedTags.size;
+                    tagsCountEl.style.display = localBlockedTags.size > 0 ? 'inline-flex' : 'none';
+                }
+                if (onUpdate) onUpdate();
+            }
+        }
+    });
+
+    return item;
+}
+
+/**
  * Create a single country item using safe DOM methods
  */
 function createCountryItem(country, blockedCountries, onAction) {
@@ -495,7 +791,7 @@ function createRegionItem(region, blockedRegions, onAction) {
 /**
  * Create modal footer
  */
-function createFooter(blockedCountries, blockedRegions, onCountryAction, onRegionAction, renderCountries, renderRegions, onClose) {
+function createFooter(blockedCountries, blockedRegions, blockedTags, onCountryAction, onRegionAction, onTagAction, renderCountries, renderRegions, renderTags, onClose) {
     const footer = createElement('div', { className: 'x-blocker-footer' });
 
     const stats = createElement('div', {
@@ -520,12 +816,19 @@ function createFooter(blockedCountries, blockedRegions, onCountryAction, onRegio
                     renderCountries();
                     updateStats(0, 'countries');
                 }
-            } else {
+            } else if (activeTab === 'regions') {
                 const response = await onRegionAction('clear');
                 if (response?.success) {
                     blockedRegions.clear();
                     renderRegions();
                     updateStats(0, 'regions');
+                }
+            } else if (activeTab === 'tags' && onTagAction) {
+                const response = await onTagAction('clear');
+                if (response?.success) {
+                    blockedTags.clear();
+                    renderTags();
+                    updateStats(0, 'tags');
                 }
             }
         }
@@ -552,7 +855,10 @@ function createFooter(blockedCountries, blockedRegions, onCountryAction, onRegio
 function updateStats(count, type = 'countries') {
     const stats = document.getElementById('x-blocker-stats');
     if (stats) {
-        const label = type === 'countries' ? 'countries' : 'regions';
+        let label;
+        if (type === 'countries') label = 'countries';
+        else if (type === 'regions') label = 'regions';
+        else label = 'tags';
         stats.textContent = `${count} ${label} blocked`;
     }
 }

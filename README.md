@@ -39,12 +39,13 @@ Every tweet shows the author's real location and device at a glance.
 
 ---
 
-### 🚫 Location Blocking
+### 🚫 Location & Tag Blocking
 
-Filter your timeline by hiding or highlighting tweets from specific locations.
+Filter your timeline by hiding or highlighting tweets based on location or display name patterns.
 
 **Countries** — Block individual countries with one-click selection  
-**Regions** — Block entire geographic areas (Europe, South Asia, Africa, etc.)
+**Regions** — Block entire geographic areas (Europe, South Asia, Africa, etc.)  
+**Tags** — Block users with specific emojis, symbols, or text in their display names
 
 **Two blocking modes:**
 - **Hide** (default) — Blocked tweets vanish from your feed
@@ -80,7 +81,7 @@ See your cached data at a glance:
 
 Full backup and restore of your configuration:
 - All settings and preferences
-- Blocked countries and regions
+- Blocked countries, regions, and tags
 - Cached user data
 
 Move between browsers or share configurations across devices.
@@ -179,21 +180,18 @@ extension/src/
 
 ## 📝 Changelog
 
-**v2.3.2** — Latest
+**v2.4.0** — Latest
 
-### 🐛 Bug Fixes
-- Fixed issue where the logged-in user's own tweets were being hidden/blocked (causing infinite scroll loops on profile pages)
-- Resolved Firefox initialization crash by ensuring safe DOM injection (fixing the incomplete patch in v2.3.1)
-- Fixed intermittent Firefox initialization crash when `document.head` is temporarily unavailable at `document_start`
+### ✨ New Features
+- **Tag-Based Blocking** — Block users based on emojis, symbols, or text patterns in their display names
+  - Tags are matched against the user's display name (not username)
+  - New "Tags" tab in the blocking modal and options page
+  - Works alongside existing country and region blocking
+  - Tags included in Export/Import for backup and restore
 
 ### 🎨 UI/UX
-- **New Hovercard (on badge hover)** with rich account metadata:
-  - Location, device, VPN/proxy signal
-  - Verification signals (Blue / Verified / ID / Protected)
-  - Account created date, “Verified since”, handle-change count
-  - Stable X internal account identifier labeled as **User ID**
-  - Affiliation label (if present)
-- Info badge actions are always visible (info hint + evidence camera)
+- Added count badges to blocking modal tabs showing number of blocked items
+- Streamlined tag management interface in sidebar modal and options page
 
 [View full changelog →](CHANGELOG.md)
 

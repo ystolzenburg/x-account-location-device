@@ -38,8 +38,16 @@ const elements = {
     // Tabs
     tabCountries: document.getElementById('tab-countries'),
     tabRegions: document.getElementById('tab-regions'),
+    tabTags: document.getElementById('tab-tags'),
     panelCountries: document.getElementById('panel-countries'),
     panelRegions: document.getElementById('panel-regions'),
+    panelTags: document.getElementById('panel-tags'),
+    // Blocked Tags
+    blockedTagsList: document.getElementById('blocked-tags-list'),
+    blockedTagsCount: document.getElementById('blocked-tags-count'),
+    tagInput: document.getElementById('tag-input'),
+    btnAddTag: document.getElementById('btn-add-tag'),
+    btnClearBlockedTags: document.getElementById('btn-clear-blocked-tags'),
     // Cloud cache
     optCloudCache: document.getElementById('opt-cloud-cache'),
     cloudStatus: document.getElementById('cloud-status'),
@@ -73,6 +81,7 @@ const elements = {
 let currentSettings = {};
 let blockedCountries = [];
 let blockedRegions = [];
+let blockedTags = [];
 let rateLimitMonitorInterval = null;
 
 /**
@@ -127,6 +136,7 @@ async function initialize() {
     await loadSettings();
     await loadBlockedCountries();
     await loadBlockedRegions();
+    await loadBlockedTags();
     await loadCacheStats();
     await loadStatistics();
     await loadCloudCacheStatus();
@@ -286,6 +296,164 @@ function updateBlockedRegionsCount() {
     if (elements.blockedRegionsCount) {
         elements.blockedRegionsCount.textContent = blockedRegions.length;
         elements.blockedRegionsCount.style.display = blockedRegions.length > 0 ? 'inline-flex' : 'none';
+    }
+}
+
+/**
+ * Load blocked tags
+ */
+async function loadBlockedTags() {
+    try {
+        const response = await browserAPI.runtime.sendMessage({
+            type: MESSAGE_TYPES.GET_BLOCKED_TAGS
+        });
+
+        if (response?.success) {
+            blockedTags = response.data || [];
+            renderBlockedTags();
+            updateBlockedTagsCount();
+        }
+    } catch (error) {
+        console.error('Failed to load blocked tags:', error);
+    }
+}
+
+/**
+ * Update blocked tags count badge
+ */
+function updateBlockedTagsCount() {
+    if (elements.blockedTagsCount) {
+        elements.blockedTagsCount.textContent = blockedTags.length;
+        elements.blockedTagsCount.style.display = blockedTags.length > 0 ? 'inline-flex' : 'none';
+    }
+}
+
+/**
+ * Render blocked tags list
+ */
+function renderBlockedTags() {
+    const list = elements.blockedTagsList;
+    if (!list) return;
+    
+    // Clear list safely
+    list.replaceChildren();
+    
+    if (blockedTags.length === 0) {
+        const emptyState = document.createElement('p');
+        emptyState.className = 'empty-state';
+        emptyState.textContent = 'No tags blocked';
+        list.appendChild(emptyState);
+        return;
+    }
+    
+    for (const tag of blockedTags.sort()) {
+        const item = document.createElement('div');
+        item.className = 'blocked-item';
+        
+        // Build blocked-item-info
+        const itemInfo = document.createElement('div');
+        itemInfo.className = 'blocked-item-info';
+        
+        // Tag display
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'blocked-tag-text';
+        tagSpan.textContent = tag;
+        itemInfo.appendChild(tagSpan);
+        
+        item.appendChild(itemInfo);
+        
+        // Remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'blocked-remove';
+        removeBtn.dataset.tag = tag;
+        removeBtn.setAttribute('aria-label', `Remove ${tag}`);
+        
+        const removeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        removeSvg.setAttribute('viewBox', '0 0 24 24');
+        removeSvg.setAttribute('width', '16');
+        removeSvg.setAttribute('height', '16');
+        const removePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        removePath.setAttribute('fill', 'currentColor');
+        removePath.setAttribute('d', 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z');
+        removeSvg.appendChild(removePath);
+        removeBtn.appendChild(removeSvg);
+        
+        // Add event handler directly
+        removeBtn.addEventListener('click', async () => {
+            await removeBlockedTag(tag);
+        });
+        
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+    }
+}
+
+/**
+ * Add a new blocked tag
+ */
+async function addBlockedTag(tag) {
+    if (!tag || tag.trim() === '') return;
+    
+    try {
+        const response = await browserAPI.runtime.sendMessage({
+            type: MESSAGE_TYPES.SET_BLOCKED_TAGS,
+            payload: { action: 'add', tag: tag.trim() }
+        });
+
+        if (response?.success) {
+            blockedTags = response.data || [];
+            renderBlockedTags();
+            updateBlockedTagsCount();
+            showSaveStatus();
+        }
+    } catch (error) {
+        console.error('Failed to add blocked tag:', error);
+    }
+}
+
+/**
+ * Remove a blocked tag
+ */
+async function removeBlockedTag(tag) {
+    try {
+        const response = await browserAPI.runtime.sendMessage({
+            type: MESSAGE_TYPES.SET_BLOCKED_TAGS,
+            payload: { action: 'remove', tag }
+        });
+
+        if (response?.success) {
+            blockedTags = response.data || [];
+            renderBlockedTags();
+            updateBlockedTagsCount();
+            showSaveStatus();
+        }
+    } catch (error) {
+        console.error('Failed to remove blocked tag:', error);
+    }
+}
+
+/**
+ * Clear all blocked tags
+ */
+async function clearAllBlockedTags() {
+    if (blockedTags.length === 0) return;
+    
+    if (!confirm('Are you sure you want to unblock all tags?')) return;
+    
+    try {
+        const response = await browserAPI.runtime.sendMessage({
+            type: MESSAGE_TYPES.SET_BLOCKED_TAGS,
+            payload: { action: 'clear' }
+        });
+
+        if (response?.success) {
+            blockedTags = [];
+            renderBlockedTags();
+            updateBlockedTagsCount();
+            showSaveStatus();
+        }
+    } catch (error) {
+        console.error('Failed to clear blocked tags:', error);
     }
 }
 
@@ -1199,12 +1367,13 @@ function setupEventListeners() {
         });
     }
 
-    // Tab switching for blocked locations
-    if (elements.tabCountries && elements.tabRegions) {
+    // Tab switching for blocked locations (Countries, Regions, Tags)
+    if (elements.tabCountries && elements.tabRegions && elements.tabTags) {
         const switchBlockedTab = tab => {
             // Update tab active states
             elements.tabCountries.classList.toggle('active', tab === 'countries');
             elements.tabRegions.classList.toggle('active', tab === 'regions');
+            elements.tabTags.classList.toggle('active', tab === 'tags');
             
             // Show/hide panels
             if (elements.panelCountries) {
@@ -1213,10 +1382,42 @@ function setupEventListeners() {
             if (elements.panelRegions) {
                 elements.panelRegions.style.display = tab === 'regions' ? 'block' : 'none';
             }
+            if (elements.panelTags) {
+                elements.panelTags.style.display = tab === 'tags' ? 'block' : 'none';
+            }
         };
         
         elements.tabCountries.addEventListener('click', () => switchBlockedTab('countries'));
         elements.tabRegions.addEventListener('click', () => switchBlockedTab('regions'));
+        elements.tabTags.addEventListener('click', () => switchBlockedTab('tags'));
+    }
+
+    // Tags: Add tag button
+    if (elements.btnAddTag && elements.tagInput) {
+        elements.btnAddTag.addEventListener('click', async () => {
+            const tag = elements.tagInput.value.trim();
+            if (tag) {
+                await addBlockedTag(tag);
+                elements.tagInput.value = '';
+            }
+        });
+        
+        // Also allow Enter key to add tag
+        elements.tagInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const tag = elements.tagInput.value.trim();
+                if (tag) {
+                    addBlockedTag(tag);
+                    elements.tagInput.value = '';
+                }
+            }
+        });
+    }
+
+    // Clear all blocked tags
+    if (elements.btnClearBlockedTags) {
+        elements.btnClearBlockedTags.addEventListener('click', clearAllBlockedTags);
     }
 
     // Cloud cache toggle
@@ -1290,12 +1491,13 @@ function setupEventListeners() {
                 // Metadata
                 exportedAt: new Date().toISOString(),
                 version: VERSION,
-                exportFormat: '2.1',
+                exportFormat: '2.2',
                 
                 // Configuration
                 settings: settingsResponse?.data || currentSettings,
                 blockedCountries,
                 blockedRegions,
+                blockedTags,
                 
                 // User data
                 cache: cacheResponse?.data || []
@@ -1385,6 +1587,7 @@ async function handleImportFile(file) {
         const cacheCount = Array.isArray(data.cache) ? data.cache.length : 0;
         const blockedCount = Array.isArray(data.blockedCountries) ? data.blockedCountries.length : 0;
         const blockedRegionsCount = Array.isArray(data.blockedRegions) ? data.blockedRegions.length : 0;
+        const blockedTagsCount = Array.isArray(data.blockedTags) ? data.blockedTags.length : 0;
         const hasSettings = data.settings && typeof data.settings === 'object';
         
         const confirmMessage = [
@@ -1394,6 +1597,7 @@ async function handleImportFile(file) {
             hasSettings ? '• Settings (display options, etc.)' : '',
             blockedCount > 0 ? `• ${blockedCount} blocked countries` : '',
             blockedRegionsCount > 0 ? `• ${blockedRegionsCount} blocked regions` : '',
+            blockedTagsCount > 0 ? `• ${blockedTagsCount} blocked tags` : '',
             cacheCount > 0 ? `• ${cacheCount} cached users` : '',
             '',
             `Exported on: ${data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'Unknown'}`,
@@ -1412,6 +1616,7 @@ async function handleImportFile(file) {
                 settings: data.settings,
                 blockedCountries: data.blockedCountries,
                 blockedRegions: data.blockedRegions,
+                blockedTags: data.blockedTags,
                 cache: data.cache
             }
         });
@@ -1421,6 +1626,7 @@ async function handleImportFile(file) {
             if (response.importedSettings) results.push('settings');
             if (response.importedBlockedCountries) results.push(`${response.importedBlockedCountries} blocked countries`);
             if (response.importedBlockedRegions) results.push(`${response.importedBlockedRegions} blocked regions`);
+            if (response.importedBlockedTags) results.push(`${response.importedBlockedTags} blocked tags`);
             if (response.importedCache) results.push(`${response.importedCache} cached users`);
             
             showStatus(`✓ Successfully imported: ${results.join(', ')}`);
@@ -1429,6 +1635,7 @@ async function handleImportFile(file) {
             await loadSettings();
             await loadBlockedCountries();
             await loadBlockedRegions();
+            await loadBlockedTags();
             await loadCacheStats();
             await loadStatistics();
         } else {

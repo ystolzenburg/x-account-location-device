@@ -2,6 +2,22 @@
 
 All notable changes to X-Posed will be documented in this file.
 
+## [2.4.0] - 2025-12-28
+
+### ✨ New Features
+- **Tag-Based Blocking** — Block users based on emojis, symbols, or text patterns in their display names
+  - Tags are matched against the user's display name (not username)
+  - New "Tags" tab in the blocking modal and options page
+  - Works alongside existing country and region blocking
+  - Tags included in Export/Import for backup and restore
+
+### 🎨 UI/UX
+- Added count badges to blocking modal tabs showing number of blocked items
+- Streamlined tag management interface in sidebar modal and options page
+- "Blocked Locations" section renamed to "Blocking" for clarity
+
+---
+
 ## [2.3.2] - 2025-12-22
 
 ### 🐛 Bug Fixes
@@ -13,7 +29,7 @@ All notable changes to X-Posed will be documented in this file.
 - **New Hovercard (on badge hover)** with rich account metadata:
   - Location, device, VPN/proxy signal
   - Verification signals (Blue / Verified / ID / Protected)
-  - Account created date, “Verified since”, handle-change count
+  - Account created date, "Verified since", handle-change count
   - Stable X internal account identifier labeled as **User ID**
   - Affiliation label (if present)
 - Info badge actions are always visible (info hint + evidence camera)

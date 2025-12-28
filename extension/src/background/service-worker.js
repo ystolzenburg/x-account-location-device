@@ -6,7 +6,7 @@
 
 import browserAPI from '../shared/browser-api.js';
 import { MESSAGE_TYPES, VERSION, STORAGE_KEYS, TIMING } from '../shared/constants.js';
-import { userCache, blockedCountries, blockedRegions, settings, headersStorage, initializeStorage } from '../shared/storage.js';
+import { userCache, blockedCountries, blockedRegions, blockedTags, settings, headersStorage, initializeStorage } from '../shared/storage.js';
 import { apiClient, API_ERROR_CODES } from './api-client.js';
 import { calculateStatistics } from '../shared/utils.js';
 import cloudCache from './cloud-cache.js';
@@ -98,6 +98,12 @@ async function handleMessage(message, _sender) {
             
             case MESSAGE_TYPES.SET_BLOCKED_REGIONS:
                 return await handleSetBlockedRegions(payload);
+            
+            case MESSAGE_TYPES.GET_BLOCKED_TAGS:
+                return handleGetBlockedTags();
+            
+            case MESSAGE_TYPES.SET_BLOCKED_TAGS:
+                return await handleSetBlockedTags(payload);
             
             case MESSAGE_TYPES.GET_STATISTICS:
                 return handleGetStatistics();
@@ -458,6 +464,17 @@ function handleGetBlockedRegions() {
 }
 
 /**
+ * Get blocked tags handler
+ */
+function handleGetBlockedTags() {
+    return {
+        success: true,
+        data: blockedTags.getAll(),
+        size: blockedTags.size
+    };
+}
+
+/**
  * Set blocked regions handler
  */
 async function handleSetBlockedRegions({ action, region, regions }) {
@@ -504,6 +521,56 @@ async function handleSetBlockedRegions({ action, region, regions }) {
         success: true,
         data: blockedRegions.getAll(),
         size: blockedRegions.size
+    };
+}
+
+/**
+ * Set blocked tags handler
+ */
+async function handleSetBlockedTags({ action, tag, tags }) {
+    switch (action) {
+        case 'add':
+            blockedTags.add(tag);
+            break;
+        case 'remove':
+            blockedTags.remove(tag);
+            break;
+        case 'toggle':
+            blockedTags.toggle(tag);
+            break;
+        case 'clear':
+            await blockedTags.clear();
+            break;
+        case 'set':
+            // Replace all blocked tags
+            await blockedTags.clear();
+            for (const t of tags) {
+                blockedTags.add(t);
+            }
+            break;
+    }
+    
+    // Notify all tabs about blocked tags change
+    try {
+        const tabs = await browserAPI.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
+        for (const tab of tabs) {
+            try {
+                await browserAPI.tabs.sendMessage(tab.id, {
+                    type: MESSAGE_TYPES.BLOCKED_TAGS_UPDATED,
+                    payload: blockedTags.getAll()
+                });
+            } catch (e) {
+                // Tab might not have content script loaded
+            }
+        }
+    } catch (e) {
+        console.debug('Could not notify tabs:', e);
+    }
+    
+    return {
+        success: true,
+        data: blockedTags.getAll(),
+        size: blockedTags.size
     };
 }
 
@@ -707,11 +774,12 @@ async function handleSyncLocalToCloud() {
 /**
  * Import data handler - imports settings, blocked countries, blocked regions, and cache from exported JSON
  */
-async function handleImportData({ settings: importSettings, blockedCountries: importBlockedCountries, blockedRegions: importBlockedRegions, cache: importCache }) {
+async function handleImportData({ settings: importSettings, blockedCountries: importBlockedCountries, blockedRegions: importBlockedRegions, blockedTags: importBlockedTags, cache: importCache }) {
     const results = {
         settings: false,
         blockedCountries: { count: 0 },
         blockedRegions: { count: 0 },
+        blockedTags: { count: 0 },
         cache: { count: 0 }
     };
     
@@ -740,6 +808,16 @@ async function handleImportData({ settings: importSettings, blockedCountries: im
                 blockedRegions.add(region);
             }
             results.blockedRegions.count = importBlockedRegions.length;
+        }
+        
+        // Import blocked tags if provided
+        if (Array.isArray(importBlockedTags)) {
+            // Clear existing and set new
+            await blockedTags.clear();
+            for (const tag of importBlockedTags) {
+                blockedTags.add(tag);
+            }
+            results.blockedTags.count = importBlockedTags.length;
         }
         
         // Import cache entries if provided
@@ -772,6 +850,11 @@ async function handleImportData({ settings: importSettings, blockedCountries: im
                         type: MESSAGE_TYPES.BLOCKED_REGIONS_UPDATED,
                         payload: blockedRegions.getAll()
                     });
+                    // Notify about blocked tags update
+                    await browserAPI.tabs.sendMessage(tab.id, {
+                        type: MESSAGE_TYPES.BLOCKED_TAGS_UPDATED,
+                        payload: blockedTags.getAll()
+                    });
                 } catch (e) {
                     // Tab might not have content script loaded
                 }
@@ -782,13 +865,21 @@ async function handleImportData({ settings: importSettings, blockedCountries: im
         
         return {
             success: true,
-            results
+            importedSettings: results.settings,
+            importedBlockedCountries: results.blockedCountries.count,
+            importedBlockedRegions: results.blockedRegions.count,
+            importedBlockedTags: results.blockedTags.count,
+            importedCache: results.cache.count
         };
     } catch (error) {
         return {
             success: false,
             error: error.message,
-            results
+            importedSettings: results.settings,
+            importedBlockedCountries: results.blockedCountries.count,
+            importedBlockedRegions: results.blockedRegions.count,
+            importedBlockedTags: results.blockedTags.count,
+            importedCache: results.cache.count
         };
     }
 }

@@ -4,7 +4,7 @@
  */
 
 import { SELECTORS, CSS_CLASSES, MESSAGE_TYPES, TIMING, isRegion } from '../shared/constants.js';
-import { extractUsername, findInsertionPoint, getLoggedInUsername } from '../shared/utils.js';
+import { extractUsername, findInsertionPoint, getLoggedInUsername, extractTagsFromText } from '../shared/utils.js';
 import { createBadge, findUserCellInsertionPoint, showRateLimitToast } from './ui.js';
 import { LRUCache } from '../shared/lru-cache.js';
 
@@ -81,6 +81,121 @@ let lastRateLimitToastTime = 0;
 
 // Cleanup functions registry
 export const observerCleanupFunctions = [];
+
+// ============================================
+// DISPLAY NAME EXTRACTION
+// ============================================
+
+/**
+ * Extract display name including emojis from an element
+ * X renders emojis as <img alt="emoji"> tags, so we need to reconstruct the full text
+ * @param {HTMLElement} element - The username element
+ * @returns {string} - Display name with emojis
+ */
+function extractDisplayName(element) {
+    // Find the tweet or user cell
+    const tweet = element.closest(SELECTORS.TWEET);
+    const userCell = element.closest(SELECTORS.USER_CELL);
+    const container = tweet || userCell;
+    if (!container) return '';
+    
+    // Method 1: Look for User-Name testid which contains display name and @handle
+    const userNameContainer = container.querySelector('[data-testid="User-Name"]');
+    if (userNameContainer) {
+        // The first link usually contains the display name
+        const displayNameLink = userNameContainer.querySelector('a[href^="/"]');
+        if (displayNameLink) {
+            const displayName = extractTextWithEmojis(displayNameLink);
+            if (displayName && !displayName.startsWith('@')) {
+                return displayName;
+            }
+        }
+    }
+    
+    // Method 2: Look for profile links with role="link"
+    const profileLinks = container.querySelectorAll('a[href^="/"][role="link"]');
+    for (const link of profileLinks) {
+        const displayName = extractTextWithEmojis(link);
+        // Skip if it looks like a @username or if it's empty
+        if (displayName && !displayName.startsWith('@') && displayName.length > 0) {
+            return displayName;
+        }
+    }
+    
+    // Method 3: Check the element itself if it contains the display name
+    const parentSpan = element.closest('span');
+    if (parentSpan) {
+        const displayName = extractTextWithEmojis(parentSpan);
+        if (displayName && !displayName.startsWith('@')) {
+            return displayName;
+        }
+    }
+    
+    return '';
+}
+
+/**
+ * Extract text content including emoji alt text from an element
+ * @param {HTMLElement} element - Element to extract text from
+ * @returns {string} - Text with emojis
+ */
+function extractTextWithEmojis(element) {
+    let result = '';
+    
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+            acceptNode: node => {
+                if (node.nodeType === Node.TEXT_NODE) return NodeFilter.FILTER_ACCEPT;
+                if (node.nodeName === 'IMG' && node.alt) return NodeFilter.FILTER_ACCEPT;
+                return NodeFilter.FILTER_SKIP;
+            }
+        }
+    );
+    
+    let node;
+    while ((node = walker.nextNode())) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            result += node.textContent;
+        } else if (node.nodeName === 'IMG' && node.alt) {
+            result += node.alt;
+        }
+    }
+    
+    return result.trim();
+}
+
+/**
+ * Check if a display name contains any blocked tags
+ * @param {string} displayName - The display name to check
+ * @param {Set} blockedTags - Set of blocked tags
+ * @returns {boolean} - True if any blocked tag is found
+ */
+function hasBlockedTag(displayName, blockedTags) {
+    if (!displayName || !blockedTags || blockedTags.size === 0) return false;
+    
+    // Extract tags from display name
+    const nameTags = extractTagsFromText(displayName);
+    
+    // Check each tag against blocked set
+    for (const tag of nameTags) {
+        if (blockedTags.has(tag)) {
+            return true;
+        }
+    }
+    
+    // Also check if the display name contains any blocked tag as a substring
+    const displayLower = displayName.toLowerCase();
+    for (const blockedTag of blockedTags) {
+        const tagLower = blockedTag.toLowerCase();
+        if (displayLower.includes(tagLower)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
 
 // ============================================
 // USERNAME EXTRACTION
@@ -323,6 +438,7 @@ export function createProcessElementSafe(processElement) {
 export async function processElement(element, {
     blockedCountries,
     blockedRegions,
+    blockedTags,
     settings,
     csrfToken,
     sendMessage,
@@ -366,6 +482,37 @@ export async function processElement(element, {
     element.dataset.xScreenName = screenName;
 
     if (debug) debug(`Processing @${screenName}`);
+
+    // Check for blocked tags in display name early (before API call)
+    if (blockedTags && blockedTags.size > 0) {
+        const displayName = extractDisplayName(element);
+        if (displayName && hasBlockedTag(displayName, blockedTags)) {
+            element.dataset.xTagBlocked = 'true';
+            element.dataset.xDisplayName = displayName;
+            
+            const isQuote = isInsideQuoteTweet(element);
+            const loggedInUser = getLoggedInUsername();
+            const isSelf = loggedInUser && screenName.toLowerCase() === loggedInUser.toLowerCase();
+            
+            if (!isQuote && !isSelf) {
+                const tweet = element.closest(SELECTORS.TWEET);
+                if (tweet) {
+                    if (settings.highlightBlockedTweets) {
+                        tweet.classList.add('x-tweet-highlighted');
+                        tweet.classList.remove(CSS_CLASSES.TWEET_BLOCKED);
+                    } else {
+                        tweet.classList.add(CSS_CLASSES.TWEET_BLOCKED);
+                        tweet.classList.remove('x-tweet-highlighted');
+                    }
+                    if (debug) debug(`Blocked @${screenName} due to tag in display name: "${displayName}"`);
+                    
+                    if (!settings.highlightBlockedTweets) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
 
     // Check local cache
     if (userInfoCache.has(screenName)) {
@@ -642,7 +789,7 @@ export async function processElement(element, {
  * @param {Set} blockedRegions - Set of blocked region names (lowercase)
  * @param {Object} settings - Settings object with highlightBlockedTweets flag
  */
-export function updateBlockedTweets(blockedCountries, blockedRegions, settings = {}) {
+export function updateBlockedTweets(blockedCountries, blockedRegions, blockedTags, settings = {}) {
     const highlightMode = settings.highlightBlockedTweets === true;
     
     document.querySelectorAll('[data-x-screen-name]').forEach(element => {

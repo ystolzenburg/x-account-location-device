@@ -516,6 +516,29 @@ body {
     font-size: 13px;
 }
 
+/* Tag input row for Blocking > Tags panel */
+.tag-input-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 16px;
+}
+
+.tag-input-row .country-search {
+    flex: 1;
+}
+
+.tag-input-row .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Blocked tag text style */
+.blocked-tag-text {
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
 /* Cache Info */
 .cache-info {
     display: flex;

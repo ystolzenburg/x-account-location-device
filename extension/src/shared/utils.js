@@ -715,3 +715,83 @@ function getDeviceCategory(deviceString) {
     
     return 'Unknown';
 }
+
+/**
+ * Extract emojis and special tags from a display name or bio.
+ * This extracts:
+ * - All emoji characters (including flag emojis, compound emojis)
+ * - Common symbolic patterns users put in their names
+ * 
+ * @param {string|null|undefined} text - The text to extract tags from (display name, bio, etc.)
+ * @returns {string[]} - Array of unique tags/emojis found
+ */
+export function extractTagsFromText(text) {
+    if (!text || typeof text !== 'string') return [];
+    
+    const tags = new Set();
+    
+    // Comprehensive emoji regex pattern
+    // Matches most emoji including:
+    // - Basic emoji (😀-🙏)
+    // - Flag emojis (🇦🇫-🇿🇼)
+    // - Skin tone modifiers
+    // - Compound emojis with ZWJ (👨‍👩‍👧)
+    // - Emoji with variation selectors
+    const emojiRegex = /(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Emoji_Component})+(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base}\p{Emoji_Modifier}?|\p{Emoji_Component})+)*/gu;
+    
+    // Extract all emojis
+    const emojiMatches = text.match(emojiRegex);
+    if (emojiMatches) {
+        for (const emoji of emojiMatches) {
+            // Skip common punctuation that might match as emoji components
+            if (emoji === '#' || emoji === '*' || emoji === '0' || emoji === '1' || 
+                emoji === '2' || emoji === '3' || emoji === '4' || emoji === '5' || 
+                emoji === '6' || emoji === '7' || emoji === '8' || emoji === '9') {
+                continue;
+            }
+            tags.add(emoji);
+        }
+    }
+    
+    // Also extract common symbolic patterns users put in names
+    // These are patterns like: ⭐, ✨, 🔥, 💀, etc. that might not be caught above
+    // And text-based tags in brackets/parentheses like: [BOT], (parody), etc.
+    const bracketPatterns = text.match(/\[([^\]]{1,20})\]|\(([^)]{1,20})\)/g);
+    if (bracketPatterns) {
+        for (const pattern of bracketPatterns) {
+            tags.add(pattern);
+        }
+    }
+    
+    // Extract hashtag-like patterns without the #
+    // E.g., in "John #MAGA Smith" we extract "MAGA"
+    const hashtagMatches = text.match(/#(\w{2,20})/g);
+    if (hashtagMatches) {
+        for (const hashtag of hashtagMatches) {
+            tags.add(hashtag);
+        }
+    }
+    
+    return Array.from(tags);
+}
+
+/**
+ * Common/popular tags that users frequently use for identification
+ * This list can be used to populate a quick-select UI
+ */
+export const COMMON_PROFILE_TAGS = [
+    // Country flags (most common)
+    '🇺🇸', '🇬🇧', '🇷🇺', '🇺🇦', '🇨🇳', '🇮🇳', '🇮🇱', '🇵🇸', '🇮🇷', '🇹🇷',
+    '🇩🇪', '🇫🇷', '🇯🇵', '🇰🇷', '🇧🇷', '🇲🇽', '🇨🇦', '🇦🇺', '🇪🇺',
+    // Political/identity symbols
+    '🏳️‍🌈', '🏳️‍⚧️', '✡️', '☪️', '✝️', '🕉️', '☸️', '✊', '✊🏿', '✊🏻',
+    // Common decorative
+    '⭐', '🌟', '✨', '💫', '🔥', '💀', '👻', '🎭', '🎪', '🎯',
+    '💎', '👑', '🏆', '🎖️', '🏅', '🎗️',
+    // Status/role indicators
+    '🤖', '🔵', '✅', '❌', '⚠️', '🔒', '🔓',
+    '📢', '📣', '🎙️', '📰', '🗞️',
+    // Common bracket tags
+    '[BOT]', '[PARODY]', '[FAN]', '[RP]', '[18+]', '[NSFW]',
+    '(parody)', '(fan account)', '(satire)', '(not affiliated)'
+];

@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
     CACHE: 'x_location_cache_v4',
     BLOCKED_COUNTRIES: 'x_blocked_countries',
     BLOCKED_REGIONS: 'x_blocked_regions',
+    BLOCKED_TAGS: 'x_blocked_tags',
     SETTINGS: 'x_location_settings',
     HEADERS: 'x_api_headers',
     THEME: 'x_theme_preference',
@@ -127,6 +128,8 @@ export const MESSAGE_TYPES = {
     SET_BLOCKED_COUNTRIES: 'SET_BLOCKED_COUNTRIES',
     GET_BLOCKED_REGIONS: 'GET_BLOCKED_REGIONS',
     SET_BLOCKED_REGIONS: 'SET_BLOCKED_REGIONS',
+    GET_BLOCKED_TAGS: 'GET_BLOCKED_TAGS',
+    SET_BLOCKED_TAGS: 'SET_BLOCKED_TAGS',
     GET_STATISTICS: 'GET_STATISTICS',
     GET_THEME: 'GET_THEME',
     SET_THEME: 'SET_THEME',
@@ -147,6 +150,7 @@ export const MESSAGE_TYPES = {
     SETTINGS_UPDATED: 'SETTINGS_UPDATED',
     BLOCKED_COUNTRIES_UPDATED: 'BLOCKED_COUNTRIES_UPDATED',
     BLOCKED_REGIONS_UPDATED: 'BLOCKED_REGIONS_UPDATED',
+    BLOCKED_TAGS_UPDATED: 'BLOCKED_TAGS_UPDATED',
     THEME_UPDATED: 'THEME_UPDATED',
     
     // Page script to content script (via custom events)

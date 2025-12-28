@@ -746,15 +746,15 @@ function addBlockerLink(nav, blockedCountries, blockedRegions, sendMessage, MESS
     if (textDiv) {
         const spans = textDiv.querySelectorAll('span');
         if (spans.length > 0) {
-            spans[0].textContent = 'Block Locations';
+            spans[0].textContent = 'Blocking';
         } else {
-            textDiv.textContent = 'Block Locations';
+            textDiv.textContent = 'Blocking';
         }
     } else {
         const allSpans = link.querySelectorAll('span');
         for (const span of allSpans) {
             if (span.textContent.trim() === 'Profile') {
-                span.textContent = 'Block Locations';
+                span.textContent = 'Blocking';
                 break;
             }
         }
@@ -813,7 +813,28 @@ function showBlockerModal(blockedCountries, blockedRegions, sendMessage, MESSAGE
         return response;
     };
     
-    showModal(blockedCountries, blockedRegions, onCountryAction, onRegionAction);
+    // Get blockedTags from the global state (window.__X_POSED_CONTENT__)
+    const state = window.__X_POSED_CONTENT__?.getState?.() || {};
+    const blockedTags = new Set(state.blockedTags || []);
+    
+    // Tag action handler
+    const onTagAction = async (action, tag) => {
+        const response = await sendMessage({
+            type: MESSAGE_TYPES.SET_BLOCKED_TAGS,
+            payload: { action, tag }
+        });
+        
+        if (response?.success) {
+            blockedTags.clear();
+            for (const t of response.data) {
+                blockedTags.add(t);
+            }
+        }
+        
+        return response;
+    };
+    
+    showModal(blockedCountries, blockedRegions, onCountryAction, onRegionAction, blockedTags, onTagAction);
 }
 
 // ============================================

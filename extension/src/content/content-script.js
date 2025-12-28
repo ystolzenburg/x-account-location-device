@@ -34,6 +34,7 @@ import {
 let isEnabled = true;
 let blockedCountries = new Set();
 let blockedRegions = new Set();
+let blockedTags = new Set();
 let settings = {};
 let csrfToken = null;
 let debugMode = false;
@@ -178,12 +179,17 @@ async function handleBackgroundMessage(type, payload) {
 
         case MESSAGE_TYPES.BLOCKED_COUNTRIES_UPDATED:
             blockedCountries = new Set(payload);
-            updateBlockedTweets(blockedCountries, blockedRegions, settings);
+            updateBlockedTweets(blockedCountries, blockedRegions, blockedTags, settings);
             return { success: true };
 
         case MESSAGE_TYPES.BLOCKED_REGIONS_UPDATED:
             blockedRegions = new Set(payload);
-            updateBlockedTweets(blockedCountries, blockedRegions, settings);
+            updateBlockedTweets(blockedCountries, blockedRegions, blockedTags, settings);
+            return { success: true };
+
+        case MESSAGE_TYPES.BLOCKED_TAGS_UPDATED:
+            blockedTags = new Set(payload);
+            updateBlockedTweets(blockedCountries, blockedRegions, blockedTags, settings);
             return { success: true };
 
         default:
@@ -212,11 +218,12 @@ async function initialize() {
         // Inject page script for header interception
         injectPageScript();
 
-        // Load initial settings, blocked countries, and blocked regions
-        const [settingsResponse, blockedResponse, blockedRegionsResponse] = await Promise.all([
+        // Load initial settings, blocked countries, blocked regions, and blocked tags
+        const [settingsResponse, blockedResponse, blockedRegionsResponse, blockedTagsResponse] = await Promise.all([
             sendMessage({ type: MESSAGE_TYPES.GET_SETTINGS }),
             sendMessage({ type: MESSAGE_TYPES.GET_BLOCKED_COUNTRIES }),
-            sendMessage({ type: MESSAGE_TYPES.GET_BLOCKED_REGIONS })
+            sendMessage({ type: MESSAGE_TYPES.GET_BLOCKED_REGIONS }),
+            sendMessage({ type: MESSAGE_TYPES.GET_BLOCKED_TAGS })
         ]);
 
         if (settingsResponse?.success) {
@@ -233,6 +240,10 @@ async function initialize() {
 
         if (blockedRegionsResponse?.success) {
             blockedRegions = new Set(blockedRegionsResponse.data);
+        }
+
+        if (blockedTagsResponse?.success) {
+            blockedTags = new Set(blockedTagsResponse.data);
         }
 
         // Inject styles
@@ -278,6 +289,7 @@ function createMemoizedFunctions() {
     memoizedProcessElementWithContext = element => processElement(element, {
         get blockedCountries() { return blockedCountries; },
         get blockedRegions() { return blockedRegions; },
+        get blockedTags() { return blockedTags; },
         get settings() { return settings; },
         get csrfToken() { return csrfToken; },
         sendMessage,
@@ -350,6 +362,7 @@ window.__X_POSED_CONTENT__ = {
         isEnabled,
         blockedCountries: Array.from(blockedCountries),
         blockedRegions: Array.from(blockedRegions),
+        blockedTags: Array.from(blockedTags),
         settings
     })
 };

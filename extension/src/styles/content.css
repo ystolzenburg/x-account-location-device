@@ -789,8 +789,24 @@
 }
 
 .x-blocker-tab.active {
-    color: rgb(29, 155, 240);
-    border-bottom-color: rgb(29, 155, 240);
+    background: var(--modal-input-bg);
+    color: var(--modal-accent);
+}
+
+/* Tab count badges (red pills) */
+.x-blocker-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 700;
+    background: #f4212e;
+    color: white;
+    border-radius: 9px;
+    margin-left: 2px;
 }
 
 .x-blocker-tab.active:hover {
@@ -820,6 +836,156 @@
 /* Region-specific styles */
 .x-blocker-regions {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+/* ============================================
+   TAGS TAB STYLES
+   ============================================ */
+
+/* Tag input section */
+.x-blocker-tag-input-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.x-blocker-tag-input {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.x-blocker-btn-add {
+    padding: 10px 20px;
+    background: rgb(29, 155, 240);
+    color: white;
+    border: none;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.x-blocker-btn-add:hover {
+    background: rgb(26, 140, 216);
+}
+
+/* Section labels */
+.x-blocker-section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgb(113, 118, 123);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Common tags section */
+.x-blocker-common-tags-section {
+    margin-bottom: 16px;
+}
+
+.x-blocker-common-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.x-blocker-common-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: 16px;
+    background: rgb(32, 35, 39);
+    border: 1px solid rgb(47, 51, 54);
+    color: rgb(231, 233, 234);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+[data-x-theme="light"] .x-blocker-common-tag {
+    background: rgb(239, 243, 244);
+    border-color: rgb(207, 217, 222);
+    color: rgb(15, 20, 25);
+}
+
+[data-x-theme="dim"] .x-blocker-common-tag {
+    background: rgb(39, 51, 64);
+    border-color: rgb(56, 68, 77);
+}
+
+.x-blocker-common-tag:hover {
+    background: rgb(47, 51, 54);
+    border-color: rgb(113, 118, 123);
+}
+
+[data-x-theme="light"] .x-blocker-common-tag:hover {
+    background: rgb(207, 217, 222);
+    border-color: rgb(113, 118, 123);
+}
+
+.x-blocker-common-tag.blocked {
+    background: rgba(244, 33, 46, 0.15);
+    border-color: rgb(244, 33, 46);
+    color: rgb(244, 33, 46);
+}
+
+/* Blocked tags section */
+.x-blocker-blocked-tags-section {
+    margin-top: 16px;
+}
+
+.x-blocker-tags-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.x-blocker-tag-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(244, 33, 46, 0.1);
+    border: 1px solid rgb(244, 33, 46);
+}
+
+.x-blocker-tag-text {
+    color: rgb(231, 233, 234);
+    font-size: 15px;
+}
+
+[data-x-theme="light"] .x-blocker-tag-text {
+    color: rgb(15, 20, 25);
+}
+
+.x-blocker-tag-remove {
+    background: none;
+    border: none;
+    color: rgb(244, 33, 46);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.x-blocker-tag-remove:hover {
+    background: rgba(244, 33, 46, 0.2);
+}
+
+/* Empty state for tags */
+.x-blocker-empty {
+    color: rgb(113, 118, 123);
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
 }
 
 .x-region-item {
